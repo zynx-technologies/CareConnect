@@ -1,0 +1,39 @@
+name: Build images
+
+# Run this by hand before the first infrastructure deployment. App deployments also call it.
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      image_tag:
+        description: Tag of the images that were built
+        value: ${{ jobs.build.outputs.image_tag }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build API and web images
+    runs-on: ubuntu-24.04
+    environment: careconnect-build
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build in the registry
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          az acr build --registry "$ACR_NAME" --image "careconnect-api:$IMAGE_TAG" backend
+          az acr build --registry "$ACR_NAME" --image "careconnect-web:$IMAGE_TAG" frontend
+          echo "Image tag: \`$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"

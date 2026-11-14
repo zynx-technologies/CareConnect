@@ -1,0 +1,311 @@
+Issue Id,Parent,Issue Type,Summary,Description,Assignee,Reporter,Priority,Status,Story Points,Sprint,Labels,Labels,Labels,Labels,Labels,Labels
+E12,,Epic,Data platform and analytics,"De-identified analytics zone, reporting, and KPIs. Phase 4 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E13,,Epic,Risk models and MLOps,Readmission and capacity models with clinical governance. Phase 4 and 5 of the design.,,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E14,,Epic,FHIR store and clinical feeds,"Azure Health Data Services FHIR store, and pathology, imaging, GP, pharmacy, and rostering feeds. Phase 2 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E15,,Epic,Patient identity and terminology,"Matching beyond exact MRN, national identifiers, and clinical terminology mapping. Phase 2 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E16,,Epic,Referral service matching,"Service catalogue, eligibility rules, wait times, and status updates for referrers. Phase 3 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E17,,Epic,Patient reminders,SMS appointment reminders and contact preferences. Phase 3 of the design.,,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E18,,Epic,Language-model drafting,"Discharge drafts and referral extraction with a language model, after safety approval. Phase 5 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E19,,Epic,Hospital-wide rollout and partners,"Scale from the pilot ward to the hospital, then GP and community partners. Phase 6 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+E20,,Epic,Production scale and resilience,"Second-region recovery, scale testing, and cost control for full production. Phase 6 of the design.",,Sreehari Veeramreddy,Medium,To Do,,,,,,,,
+200,E14,Story,Provision the FHIR store with AU Base profiles,"Deploy Azure Health Data Services FHIR R4 in Terraform, with private access only and FHIR AU Base profiles loaded.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Created by Terraform in dev and test
+* No public network access
+* Profile validation enabled",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-2,target-2027-q2,estimate-rough,role-hl7-fhir-integration-engineer,
+201,E14,Story,Convert admissions and discharges into FHIR,"Map ADT messages to Patient, Encounter, and Provenance resources, keeping the raw message for reprocessing.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Mapping reviewed by the clinical lead
+* Round-trip tests with vendor samples
+* Provenance links each resource to its message",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-2,target-2027-q2,estimate-rough,role-hl7-fhir-integration-engineer,
+202,E14,Story,Receive pathology results,"HL7 v2 ORU results stored as FHIR Observation, with LOINC codes and units.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Abnormal flags preserved
+* Unknown codes kept and reported, not dropped
+* Results appear on the patient timeline",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-2,target-2027-q2,estimate-rough,role-hl7-fhir-integration-engineer,
+203,E14,Story,Receive imaging reports,"Report text only, as FHIR DiagnosticReport. Images stay in the imaging system.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Report linked to its encounter
+* Amended reports replace earlier versions with history",,Sreehari Veeramreddy,Medium,To Do,5,,needs-hire,phase-2,target-2027-q3,estimate-rough,role-hl7-fhir-integration-engineer,
+204,E14,Story,Receive GP referral letters,"Secure messaging or PDF letters, with Document Intelligence extracting the referral fields for a person to confirm.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Original letter stored and viewable
+* Extracted fields need confirmation before triage
+* Unreadable letters routed to a work queue",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-2,target-2027-q3,estimate-rough,role-hl7-fhir-integration-engineer,
+205,E14,Story,Receive discharge medicines from pharmacy,"FHIR MedicationRequest with AMT codes, shown on the patient record.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Changed and stopped medicines are clearly marked
+* Pharmacist review status shown",,Sreehari Veeramreddy,Medium,To Do,5,,needs-hire,phase-2,target-2027-q3,estimate-rough,role-hl7-fhir-integration-engineer,
+206,E14,Task,Load rosters and shifts for staffing forecasts,"Daily load from the rostering system through Data Factory.
+
+Acceptance criteria:
+* Loads reconcile to rostering totals
+* Leave reasons are not loaded",priyanka.pothuraju@zynxtechnologies.com,Sreehari Veeramreddy,Low,To Do,3,,phase-2,target-2027-q3,estimate-rough,,,
+207,E14,Task,FHIR conformance testing,"Validate stored resources against AU Base profiles with the Inferno and HAPI validators.
+
+Acceptance criteria:
+* No profile errors for supported resources
+* Results report attached",priyanka.janumpally@zynxtechnologies.com,Sreehari Veeramreddy,High,To Do,5,,phase-2,target-2027-q3,estimate-rough,,,
+210,E15,Story,Look up national healthcare identifiers,"Use the Healthcare Identifiers Service to find each patient's IHI. Needs registration and conformance testing with the service operator.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Registration and conformance complete
+* Lookups audited
+* Unverified identifiers are marked",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-2,target-2027-q3,estimate-rough,role-hl7-fhir-integration-engineer,
+211,E15,Story,Match patients by identifier and demographics,"Link records automatically only on high-confidence matches. A wrong merge is a patient safety incident.
+
+Acceptance criteria:
+* Matching rules approved by the clinical safety officer
+* Uncertain matches go to a steward
+* Accuracy measured on a labelled test set",Sreehari Veeramreddy,Sreehari Veeramreddy,High,To Do,13,,phase-2,target-2027-q3,estimate-rough,,,
+212,E15,Story,Data steward screen for uncertain matches,"Compare two records side by side and decide whether to link them.
+
+Acceptance criteria:
+* Decision needs a reason
+* Every decision audited",Sreehari Veeramreddy,Sreehari Veeramreddy,High,To Do,8,,phase-2,target-2027-q3,estimate-rough,,,
+213,E15,Story,Unlink records that were wrongly merged,"Reverse a link, and move each piece of data back to the right patient.
+
+Acceptance criteria:
+* Unlinking is reversible and audited
+* Affected clinicians are notified",Sreehari Veeramreddy,Sreehari Veeramreddy,High,To Do,5,,phase-2,target-2027-q3,estimate-rough,,,
+214,E15,Story,Map clinical codes to national terminologies,"Map local codes to SNOMED CT-AU, LOINC, AMT, and ICD-10-AM, using a terminology service.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Mapping coverage report by source
+* Unmapped codes kept and reported",,Sreehari Veeramreddy,Medium,To Do,8,,needs-hire,phase-2,target-2027-q4,estimate-rough,role-hl7-fhir-integration-engineer,
+220,E16,Story,Service catalogue with eligibility rules,"Services, eligibility criteria, locations, and owners, maintained by referral managers.
+
+Acceptance criteria:
+* Rule changes need approval
+* Catalogue changes are versioned",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,8,,phase-3,target-2027-q3,estimate-rough,,,
+221,E16,Story,Suggest services during triage,"Rank eligible services by urgency, next available slot, and distance. The clinician always decides.
+
+Acceptance criteria:
+* Each suggestion shows why it is eligible
+* Clinician's choice and any override reason recorded",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,8,,phase-3,target-2027-q4,estimate-rough,,,
+222,E16,Task,Load wait times and next available slots,"Daily wait-time data from outpatient scheduling.
+
+Acceptance criteria:
+* Freshness shown on screen
+* Stale data flagged",priyanka.pothuraju@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,5,,phase-3,target-2027-q4,estimate-rough,,,
+223,E16,Story,Send referral status updates to the referring GP,"Tell the GP when a referral is received, triaged, and booked.
+
+Owner: HL7 and FHIR Integration Engineer (not yet in the team).
+
+Acceptance criteria:
+* Sent through secure messaging
+* Failures retried and reported",,Sreehari Veeramreddy,Medium,To Do,5,,needs-hire,phase-3,target-2027-q4,estimate-rough,role-hl7-fhir-integration-engineer,
+230,E17,Story,Send SMS appointment reminders,"Reminders through Azure Communication Services, with no clinical details in the message.
+
+Acceptance criteria:
+* Only patients who agreed receive messages
+* Delivery status recorded
+* Opt-out by reply works",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,5,,phase-3,target-2027-q4,estimate-rough,,,
+231,E17,Story,Record contact preferences and interpreter needs,"Preferred contact method, language, and interpreter needs, shown on the record.
+
+Acceptance criteria:
+* Changes audited
+* Preferences respected by the reminder service",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,3,,phase-3,target-2027-q4,estimate-rough,,,
+232,E17,Task,Privacy review of patient messaging,"Confirm consent, content, and retention for SMS.
+
+Owner: Privacy Officer (not yet in the team).
+
+Acceptance criteria:
+* Written approval before the first message is sent",,Sreehari Veeramreddy,High,To Do,2,,needs-appointment,phase-3,target-2027-q3,estimate-rough,role-privacy-officer,
+240,E12,Story,Isolated analytics zone in Azure,"Separate network, ADLS Gen2, Databricks, and Unity Catalog, with no route to the clinical zone except approved exports.
+
+Acceptance criteria:
+* Created by Terraform
+* No public endpoints
+* Access reviewed by security",anoop.kulkarni@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,8,,phase-4,target-2027-q3,estimate-rough,,,
+241,E12,Story,De-identification service,"Remove direct identifiers, replace patient keys with a keyed token, shift dates, and suppress small groups.
+
+Acceptance criteria:
+* Privacy officer approves the method
+* Re-identification test by an independent reviewer
+* Free text excluded by default",priyanka.pothuraju@zynxtechnologies.com,Sreehari Veeramreddy,High,To Do,13,,phase-4,target-2027-q3,estimate-rough,,,
+242,E12,Story,Bulk FHIR export into Bronze,"Scheduled export from the FHIR store through the de-identification service.
+
+Acceptance criteria:
+* Daily export completes within its window
+* Row counts reconcile to the FHIR store",priyanka.pothuraju@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,5,,phase-4,target-2027-q4,estimate-rough,,,
+243,E12,Story,"Silver and Gold models for encounters, referrals, and beds","Build the reporting model from the design: encounters, referrals, bed occupancy, follow-ups, and AI outputs.
+
+Acceptance criteria:
+* Definitions agreed with clinical leads
+* Data quality checks on every load",priyanka.pothuraju@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,8,,phase-4,target-2027-q4,estimate-rough,,,
+244,E12,Task,Data quality and equity checks,"Completeness, timeliness, validity, and missing-data rates by patient group.
+
+Acceptance criteria:
+* Failures raise alerts
+* Equity report shared with model governance",priyanka.janumpally@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,5,,phase-4,target-2027-q4,estimate-rough,,,
+245,E12,Task,Register datasets in Purview with lineage,"Owners, classifications, and lineage for every analytics dataset.
+
+Acceptance criteria:
+* Every Gold dataset has an owner",anoop.kulkarni@zynxtechnologies.com,Sreehari Veeramreddy,Low,To Do,3,,phase-4,target-2027-q4,estimate-rough,,,
+246,E12,Story,Operational reports in Power BI,"Follow-up within 7 days, referral waits, discharge timeliness, and emergency access trends.
+
+Acceptance criteria:
+* Row-level security by service
+* Figures match source systems",Dilip Kommanapalli,Sreehari Veeramreddy,Medium,To Do,8,,phase-4,target-2027-q4,estimate-rough,,,
+250,E13,Task,Ethics and governance approval for model development,"Confirm whether ethics approval is needed, and agree the intended use of each model.
+
+Owner: Clinical Safety Officer (not yet in the team).
+
+Acceptance criteria:
+* Written decision for each model",,Sreehari Veeramreddy,High,To Do,3,,needs-appointment,phase-4,target-2027-q3,estimate-rough,spike,role-clinical-safety-officer
+251,E13,Story,MLOps pipeline with MLflow and Unity Catalog,"Training jobs, experiment tracking, signed model registry, and Databricks Asset Bundles deployed from Git.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Every model traceable to its data and code
+* Promotion needs an approval record",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-4,target-2027-q4,estimate-rough,role-ml-engineer,
+252,E13,Story,Readmission risk model,"Calibrated gradient boosting, trained on de-identified data. Used to offer extra support, never to reduce care.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* AUROC at least 0.72 and calibration error at most 0.05 on held-out data
+* Results reported by patient group",,Sreehari Veeramreddy,Medium,To Do,13,,needs-hire,phase-4,target-2027-q4,estimate-rough,role-ml-engineer,
+253,E13,Story,Missed-appointment risk model,"Used only to offer reminders and support. It must not be used for overbooking or lowering priority.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Use restriction written into the model card
+* Results reported by patient group",,Sreehari Veeramreddy,Low,To Do,8,,needs-hire,phase-4,target-2028-q1,estimate-rough,role-ml-engineer,
+254,E13,Story,Bed and staffing forecasts,"Seven-day ward forecasts with an 80% range.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Accuracy measured against actuals
+* Range shown on every forecast",,Sreehari Veeramreddy,Medium,To Do,8,,needs-hire,phase-4,target-2027-q4,estimate-rough,role-ml-engineer,
+255,E13,Story,Eight-week silent trial of risk models,"Score live patients without showing the results to care teams.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Silent trial report reviewed by the safety committee",,Sreehari Veeramreddy,High,To Do,5,,needs-hire,phase-5,target-2028-q1,estimate-rough,role-ml-engineer,
+256,E13,Story,Show risk levels and reasons on worklists,"Low, medium, or high with the main factors, and a way to dismiss with a reason.
+
+Acceptance criteria:
+* Labelled as decision support
+* Dismissals recorded for monitoring",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,5,,phase-5,target-2028-q1,estimate-rough,,,
+257,E13,Story,Model governance screen,"Performance by patient group, clinician feedback, drift, and approval evidence.
+
+Acceptance criteria:
+* Matches the design's governance screen
+* Read-only for most users",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,8,,phase-5,target-2028-q1,estimate-rough,,,
+258,E13,Story,Model monitoring and per-ward kill switch,"Alert on drift and performance drops, and turn off any model for any ward without a release.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Kill switch tested in each environment
+* Alerts routed to ServiceNow",,Sreehari Veeramreddy,High,To Do,5,,needs-hire,phase-5,target-2028-q1,estimate-rough,role-ml-engineer,
+260,E18,Story,Clinician-reviewed evaluation set for discharge drafts,"Synthetic and de-identified cases with reference summaries, reviewed by clinicians.
+
+Owner: Clinical Lead (not yet in the team).
+
+Acceptance criteria:
+* At least 200 cases
+* Covers medicines, allergies, and follow-up",,Sreehari Veeramreddy,High,To Do,5,,needs-appointment,phase-5,target-2027-q4,estimate-rough,role-clinical-lead,
+261,E18,Story,Deploy a private language model in an Australian region,"Azure OpenAI with private access, managed identity, and contract terms that bar training on patient data.
+
+Acceptance criteria:
+* No public endpoint
+* Data stays in Australian regions",anoop.kulkarni@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,5,,phase-5,target-2027-q4,estimate-rough,,,
+262,E18,Story,Automated evaluation in the pipeline,"Score omissions, unsupported statements, and medicine errors on every prompt or model change.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* No critical medicine errors
+* Unsupported statements under 1%
+* Release blocked on failure",,Sreehari Veeramreddy,High,To Do,8,,needs-hire,phase-5,target-2028-q1,estimate-rough,role-ml-engineer,
+263,E18,Task,Prompt injection and data leakage testing,"Test notes that contain instructions, and attempts to reach another patient's data.
+
+Owner: Security Engineer (not yet in the team).
+
+Acceptance criteria:
+* No successful injections in the test set",,Sreehari Veeramreddy,High,To Do,5,,needs-hire,phase-5,target-2028-q1,estimate-rough,role-security-engineer,
+264,E18,Story,Extract referral details from GP letters with a language model,"Suggestions only, for a triage clinician to confirm.
+
+Owner: ML Engineer (not yet in the team).
+
+Acceptance criteria:
+* Each extracted field links to its source text",,Sreehari Veeramreddy,Low,To Do,8,,needs-hire,phase-5,target-2028-q1,estimate-rough,role-ml-engineer,
+265,E18,Task,Safety approval and ward-by-ward enablement,"Enable the language model one ward at a time after approval.
+
+Owner: Clinical Safety Officer (not yet in the team).
+
+Acceptance criteria:
+* Approval recorded before each ward goes live",,Sreehari Veeramreddy,High,To Do,3,,needs-appointment,phase-5,target-2028-q1,estimate-rough,role-clinical-safety-officer,
+270,E19,Task,Pilot benefits and safety review,"Compare pilot results with the baseline, and review every safety concern raised.
+
+Acceptance criteria:
+* Report presented to the sponsor and safety committee",Dilip Kommanapalli,Sreehari Veeramreddy,High,To Do,3,,phase-6,target-2027-q2,estimate-rough,,,
+271,E19,Task,Rollout plan for remaining wards,"Order wards by readiness, with training, champions, and hypercare for each wave.
+
+Acceptance criteria:
+* Plan approved by nursing and medical leads",sakunthala.panchapakesan@zynxtechnologies.com,Sreehari Veeramreddy,High,To Do,3,,phase-6,target-2027-q2,estimate-rough,,,
+272,E19,Task,Training and champions for each rollout wave,"Train staff and champions before each wave goes live.
+
+Acceptance criteria:
+* Every user trained before access
+* Feedback collected after each wave",chandan.konduru@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,8,,phase-6,target-2027-q3,estimate-rough,,,
+273,E19,Story,Secure access for GP and community partners,"Partner staff see referral status and signed discharge information only, through External ID.
+
+Acceptance criteria:
+* Access limited to their patients
+* Partner agreement signed before access",Sreehari Veeramreddy,Sreehari Veeramreddy,Medium,To Do,8,,phase-6,target-2028-q1,estimate-rough,,,
+274,E19,Task,Data sharing agreements with partners,"Agreements covering purpose, access, retention, and breach response.
+
+Acceptance criteria:
+* Reviewed by legal and the privacy officer",yeshwanth.chemakuri@zynxtechnologies.com,Sreehari Veeramreddy,High,To Do,3,,phase-6,target-2027-q4,estimate-rough,,,
+275,E19,Task,Hand over to business-as-usual support,"ServiceNow support groups, knowledge articles, and service levels.
+
+Acceptance criteria:
+* Support team signs off the handover",Satishkumar Kudikala,Sreehari Veeramreddy,Medium,To Do,5,,phase-6,target-2028-q2,estimate-rough,,,
+280,E20,Story,Second-region recovery for the clinical zone,"Recovery in Australia Southeast for the database, FHIR store, and apps.
+
+Acceptance criteria:
+* Failover rehearsed twice a year
+* Recovery targets met",srigowthami.seelam@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,8,,phase-6,target-2027-q3,estimate-rough,,,
+281,E20,Task,Load test at hospital-wide volume,"5,000 staff users and 1 million messages a day, from the design targets.
+
+Acceptance criteria:
+* Targets met with headroom",priyanka.janumpally@zynxtechnologies.com,Sreehari Veeramreddy,Medium,To Do,5,,phase-6,target-2027-q3,estimate-rough,,,
+282,E20,Task,Decide whether to split the API into separate services,"The first release is one modular API on Container Apps. Split only where load or team ownership needs it.
+
+Acceptance criteria:
+* Decision recorded with measured evidence",Sreehari Veeramreddy,Sreehari Veeramreddy,Low,To Do,3,,phase-6,target-2027-q4,estimate-rough,spike,,
+283,E20,Task,Monthly cloud cost review and budgets,"Budget alerts by environment, and a monthly review.
+
+Acceptance criteria:
+* Budgets and alerts configured
+* Review notes kept",anoop.kulkarni@zynxtechnologies.com,Sreehari Veeramreddy,Low,To Do,2,,phase-6,target-2027-q3,estimate-rough,,,

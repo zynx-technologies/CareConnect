@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: careconnect-api
+  datasource:
+    url: ${DATABASE_URL:}
+  flyway:
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ENTRA_ISSUER_URI:}
+          audiences: ${ENTRA_API_AUDIENCE:}
+
+server:
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+careconnect:
+  ai:
+    # Kill switch. When false, no draft can be generated and existing screens keep working.
+    enabled: ${CARECONNECT_AI_ENABLED:false}
+    # extractive: quotes source notes and uses no language model. azure-openai: calls a deployed model.
+    provider: ${CARECONNECT_AI_PROVIDER:extractive}
+    azure-openai:
+      endpoint: ${AZURE_OPENAI_ENDPOINT:}
+      deployment: ${AZURE_OPENAI_DEPLOYMENT:}
+  access:
+    emergency-minutes: 240
+
+logging:
+  level:
+    root: INFO
+    # HAPI logs message content at debug level, which would put patient data in the logs.
+    ca.uhn.hl7v2: WARN

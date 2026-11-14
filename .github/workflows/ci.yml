@@ -1,0 +1,91 @@
+name: CI
+
+# Needs no Azure access, so pull requests from forks get no credentials.
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Unit and API tests (H2)
+        working-directory: backend
+        run: sh mvnw -B verify
+
+  backend-sqlserver:
+    name: Backend tests on SQL Server
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Start SQL Server
+        run: |
+          # A throwaway password for a container that exists only for this job.
+          PASSWORD="Cc1-$(openssl rand -hex 16)"
+          echo "::add-mask::$PASSWORD"
+          echo "SPRING_DATASOURCE_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+          docker run -d --name sql -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=$PASSWORD" -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+          for _ in $(seq 1 60); do
+            if docker exec sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$PASSWORD" -Q "IF DB_ID('careconnect') IS NULL CREATE DATABASE careconnect"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Tests against SQL Server
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:sqlserver://localhost:1433;database=careconnect;encrypt=true;trustServerCertificate=true
+          SPRING_DATASOURCE_USERNAME: sa
+        run: sh mvnw -B test
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npx ng test --watch=false
+        env:
+          CI: '1'
+      - run: npx ng build
+
+  terraform:
+    name: Terraform checks
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

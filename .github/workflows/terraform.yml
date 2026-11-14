@@ -1,0 +1,68 @@
+name: Infrastructure
+
+# Merged infrastructure changes go to dev, then test. Production only runs when started by hand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/terraform/**
+      - .github/workflows/terraform.yml
+      - .github/workflows/_terraform.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options: [dev, test, prod]
+        required: true
+      action:
+        description: Plan only, or plan and apply
+        type: choice
+        options: [plan, apply]
+        default: plan
+      image_tag:
+        description: Image tag. Required for the first deployment of an environment; otherwise leave empty to keep what is running.
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  dev:
+    if: github.event_name == 'push' || inputs.environment == 'dev'
+    # Shared with app deployments, so a plan can't be applied over an image deployed after it was made.
+    concurrency: careconnect-dev
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      environment: dev
+      apply: ${{ github.event_name == 'push' || inputs.action == 'apply' }}
+      image_tag: ${{ inputs.image_tag }}
+
+  test:
+    needs: dev
+    if: ${{ !cancelled() && ((github.event_name == 'push' && needs.dev.result == 'success') || inputs.environment == 'test') }}
+    concurrency: careconnect-test
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      environment: test
+      apply: ${{ github.event_name == 'push' || inputs.action == 'apply' }}
+      image_tag: ${{ inputs.image_tag }}
+
+  prod:
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod' && github.ref == 'refs/heads/main'
+    concurrency: careconnect-prod
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      environment: prod
+      apply: ${{ inputs.action == 'apply' }}
+      image_tag: ${{ inputs.image_tag }}

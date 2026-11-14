@@ -1,0 +1,152 @@
+name: Terraform (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      apply:
+        type: boolean
+        required: true
+      image_tag:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  ARM_USE_OIDC: 'true'
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_STATE_KEY: careconnect-${{ inputs.environment }}.tfstate
+
+jobs:
+  plan:
+    name: Plan ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    # Holds the Terraform inputs and has no approvers, so a reviewer can read the plan before approving apply.
+    environment: careconnect-${{ inputs.environment }}-plan
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      has_changes: ${{ steps.plan.outputs.has_changes }}
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Find the images to keep
+        env:
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+          RESOURCE_GROUP: rg-careconnect-${{ inputs.environment }}
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          # App deployments change images, so an infrastructure run keeps whatever is already running.
+          image_for() {
+            if [ -n "$REQUESTED_TAG" ]; then
+              echo "$1:$REQUESTED_TAG"
+              return
+            fi
+            CURRENT="$(az containerapp show -g "$RESOURCE_GROUP" -n "$1" --query 'properties.template.containers[0].image' -o tsv 2>/dev/null || true)"
+            if [ -z "$CURRENT" ]; then
+              echo "::error::$1 is not deployed yet. Run the Build images workflow, then rerun this with its image tag." >&2
+              exit 1
+            fi
+            echo "${CURRENT#*/}"
+          }
+          API_IMAGE="$(image_for careconnect-api)"
+          WEB_IMAGE="$(image_for careconnect-web)"
+          echo "TF_VAR_api_image=$API_IMAGE" >> "$GITHUB_ENV"
+          echo "TF_VAR_web_image=$WEB_IMAGE" >> "$GITHUB_ENV"
+      - name: Initialise
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=$TF_STATE_KEY" \
+            -backend-config="use_azuread_auth=true" \
+            -backend-config="use_oidc=true"
+      - name: Plan
+        id: plan
+        env:
+          TF_VAR_acr_name: ${{ vars.ACR_NAME }}
+          TF_VAR_acr_resource_group: ${{ vars.ACR_RESOURCE_GROUP }}
+          TF_VAR_allowed_cidrs: ${{ vars.ALLOWED_CIDRS }}
+          TF_VAR_entra_tenant_id: ${{ vars.AZURE_TENANT_ID }}
+          TF_VAR_entra_api_client_id: ${{ vars.ENTRA_API_CLIENT_ID }}
+          TF_VAR_entra_spa_client_id: ${{ vars.ENTRA_SPA_CLIENT_ID }}
+          TF_VAR_ai_enabled: ${{ vars.AI_ENABLED }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan -var-file="env/$ENVIRONMENT.tfvars"
+          CODE=$?
+          set -e
+          case "$CODE" in
+            0) echo "has_changes=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "has_changes=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$CODE" ;;
+          esac
+          {
+            echo "### Terraform plan: $ENVIRONMENT"
+            echo '```'
+            terraform show -no-color tfplan
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.apply && steps.plan.outputs.has_changes == 'true'
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: infra/terraform/tfplan
+          retention-days: 1
+          if-no-files-found: error
+
+  apply:
+    name: Apply ${{ inputs.environment }}
+    needs: plan
+    if: inputs.apply && needs.plan.outputs.has_changes == 'true'
+    runs-on: ubuntu-24.04
+    # Add required reviewers to this environment. Production must have them.
+    environment: careconnect-${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: infra/terraform
+      - name: Initialise
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ vars.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=$TF_STATE_KEY" \
+            -backend-config="use_azuread_auth=true" \
+            -backend-config="use_oidc=true"
+      - name: Apply the reviewed plan
+        run: terraform apply -input=false tfplan

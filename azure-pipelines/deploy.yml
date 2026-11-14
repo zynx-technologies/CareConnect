@@ -1,0 +1,57 @@
+# Builds once, then promotes the same images through dev, test, and production.
+# Production never runs unless deployProduction is chosen and the environment's approvers accept it.
+trigger:
+  branches:
+    include: [main]
+pr: none
+
+parameters:
+  - name: deployProduction
+    displayName: Deploy to production after test
+    type: boolean
+    default: false
+
+variables:
+  - group: careconnect-shared
+  - name: IMAGE_TAG
+    value: $(Build.SourceVersion)
+
+pool:
+  vmImage: ubuntu-24.04
+
+stages:
+  - stage: Validate
+    jobs:
+      - template: templates/validate-jobs.yml
+
+  - stage: Images
+    dependsOn: Validate
+    jobs:
+      - job: Build
+        steps:
+          - task: AzureCLI@2
+            displayName: Build images in the registry
+            inputs:
+              azureSubscription: careconnect-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr build --registry "$ACR_NAME" --image "careconnect-api:$IMAGE_TAG" backend
+                az acr build --registry "$ACR_NAME" --image "careconnect-web:$IMAGE_TAG" frontend
+
+  - template: templates/deploy-stage.yml
+    parameters:
+      environment: dev
+      dependsOn: Images
+
+  - template: templates/deploy-stage.yml
+    parameters:
+      environment: test
+      dependsOn: Deploy_dev
+
+  - ${{ if eq(parameters.deployProduction, true) }}:
+      - template: templates/deploy-stage.yml
+        parameters:
+          environment: prod
+          dependsOn: Deploy_test

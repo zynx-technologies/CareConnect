@@ -1,0 +1,15 @@
+# Runs on every pull request and branch push. It needs no Azure access.
+trigger:
+  branches:
+    include: ['*']
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-24.04
+
+stages:
+  - stage: Validate
+    jobs:
+      - template: templates/validate-jobs.yml

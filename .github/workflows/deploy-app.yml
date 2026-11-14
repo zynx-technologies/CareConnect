@@ -1,0 +1,66 @@
+name: Deploy app
+
+# Builds once, then promotes the same images through dev and test. Production only runs when started by hand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - .github/workflows/deploy-app.yml
+      - .github/workflows/_deploy-app.yml
+      - .github/workflows/build-images.yml
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: Deploy to production after test
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: ci
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-images.yml
+
+  dev:
+    needs: images
+    concurrency: careconnect-dev
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_deploy-app.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.images.outputs.image_tag }}
+
+  test:
+    needs: [images, dev]
+    concurrency: careconnect-test
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_deploy-app.yml
+    with:
+      environment: test
+      image_tag: ${{ needs.images.outputs.image_tag }}
+
+  prod:
+    needs: [images, test]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_production && github.ref == 'refs/heads/main'
+    concurrency: careconnect-prod
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_deploy-app.yml
+    with:
+      environment: prod
+      image_tag: ${{ needs.images.outputs.image_tag }}

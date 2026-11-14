@@ -1,0 +1,39 @@
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+    client_max_body_size 2m;
+
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' https://login.microsoftonline.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://login.microsoftonline.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com" always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok";
+    }
+
+    location = /config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store" always;
+        return 200 '{"authMode":"entra","clientId":"${ENTRA_SPA_CLIENT_ID}","tenantId":"${ENTRA_TENANT_ID}","apiScope":"${ENTRA_API_SCOPE}"}';
+    }
+
+    # The API has internal ingress only, so the browser reaches it through this proxy.
+    location /api/ {
+        proxy_pass https://${API_HOST};
+        proxy_ssl_server_name on;
+        proxy_set_header Host ${API_HOST};
+        proxy_set_header X-Forwarded-Proto https;
+        # Query strings and bodies can identify patients, so API calls are not access-logged here.
+        access_log off;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri /index.html;
+    }
+}

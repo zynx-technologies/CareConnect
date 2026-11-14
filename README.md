@@ -1,0 +1,196 @@
+# CareConnect
+
+First deployable release of the CareConnect care coordination platform: a Java API, an Angular portal, Azure infrastructure, and Azure DevOps pipelines.
+
+> **Do not use with real patient data yet.** See [Before real patient data](#before-real-patient-data).
+
+## What is included
+
+| Area | Included |
+|---|---|
+| Patient record | Care-team patient list, encounters, notes, tasks |
+| Access control | Role, care relationship, and consent checks; audited emergency access; audit trail |
+| Referrals | Create, triage with a clinical reason, book |
+| Care tasks | Worklist, completion, automatic GP follow-up task after discharge |
+| AI drafts | Cited discharge drafts with automated checks; clinician signature required; kill switch, off by default |
+| Integration | HL7 v2 ADT A01 and A03 over HTTPS, with raw message storage and duplicate detection |
+| Delivery | Dockerfiles, Terraform, CI and deployment pipelines |
+
+### Not built yet
+
+These parts of the design document are not in this release:
+
+- FHIR store (Azure Health Data Services), and pathology, GP, pharmacy, and My Health Record feeds
+- Patient matching beyond exact MRN, and terminology mapping
+- Data platform, risk models, capacity forecasts, MLOps, and model governance screens
+- Front Door + WAF, a hub network, ExpressRoute, and disaster recovery region
+- SMS reminders, ServiceNow incidents, and alert rules
+- Privacy officer screens (the audit and consent APIs exist)
+
+### Differences from the design document
+
+| Design | This release | Why |
+|---|---|---|
+| Java 25 | Java 21 LTS | Matches the toolchain this was built and tested on |
+| Microservices on AKS | One modular API on Azure Container Apps | Much less to operate for a first release; modules can split later |
+| Secrets in Key Vault | No Key Vault | The release has no secrets. It uses managed identity and Entra sign-in |
+
+## Run locally
+
+Needs Java 21 and Node 24. Local mode uses an in-memory database, synthetic data, and a user picker in place of sign-in.
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+
+# In a second terminal
+cd frontend
+npm ci
+npx ng serve
+```
+
+Open http://localhost:4200.
+
+## Test
+
+```bash
+cd backend && ./mvnw verify
+cd frontend && CI=1 npx ng test --watch=false
+cd infra/terraform && terraform init -backend=false && terraform validate
+```
+
+## Deploy
+
+Deployment runs from GitHub Actions or Azure DevOps. **Use only one of them.** They deploy to the same environments, and their locks don't see each other. Delete the folder for the one you don't use.
+
+Steps 1 and 2 apply to both. Then follow either [GitHub Actions](#3-set-up-github-actions) or [Azure DevOps](#3-set-up-azure-devops).
+
+### 1. Create shared Azure resources
+
+Run once as an Azure administrator:
+
+```bash
+./infra/bootstrap.sh <short-unique-prefix>
+```
+
+### 2. Register two applications in Microsoft Entra ID
+
+**API (`careconnect-api`)**
+- Set the Application ID URI to `api://<api-client-id>`.
+- Expose a scope named `access_as_user`.
+- Set `accessTokenAcceptedVersion` to `2` in the manifest.
+- Create app roles: `CLINICIAN`, `COORDINATOR`, `TRIAGE`, `PRIVACY`, and `INTEGRATION`.
+
+**Portal (`careconnect-portal`)**
+- Add a single-page application platform. The redirect URI is the `portal_url` Terraform output, so add it after the first deployment.
+- Grant it the `access_as_user` scope.
+- Create the same app roles if the portal should adapt its buttons to them, then assign users to both applications.
+
+### 3. Set up GitHub Actions
+
+GitHub reads workflows only from the repository root, so `CareConnect` must be the root of the repository.
+
+| Workflow | Runs when | What it does |
+|---|---|---|
+| `ci.yml` | Pull requests to `main` | Tests and validates, with no Azure access |
+| `terraform.yml` (Infrastructure) | Merges that change `infra/terraform`, or by hand | Plans and applies to dev, then test. Production is by hand only |
+| `build-images.yml` | By hand, or called by Deploy app | Builds both images in the registry |
+| `deploy-app.yml` (Deploy app) | Merges that change `backend` or `frontend`, or by hand | Runs CI and builds once, then deploys to dev and test. Production is by hand only |
+
+1. Create a Microsoft Entra application for GitHub, and give it these roles:
+   - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
+   - **Storage Blob Data Contributor** on the state storage account
+2. Add a federated credential to it for each GitHub environment below, with the subject `repo:<owner>/<repo>:environment:<environment name>`.
+3. Create these GitHub environments:
+
+   | Environment | Purpose | Set up |
+   |---|---|---|
+   | `careconnect-build` | Builds images | Restrict to `main` |
+   | `careconnect-dev-plan`, `careconnect-test-plan`, `careconnect-prod-plan` | Terraform plans | Add the variables in the next table |
+   | `careconnect-dev`, `careconnect-test` | Terraform apply and app deployment | Restrict to `main` |
+   | `careconnect-prod` | Terraform apply and app deployment | Restrict to `main`, and add required reviewers |
+
+   Variables for each `-plan` environment:
+
+   | Variable | Example |
+   |---|---|
+   | `ALLOWED_CIDRS` | `["203.0.113.0/24"]` |
+   | `ENTRA_API_CLIENT_ID` | API client ID |
+   | `ENTRA_SPA_CLIENT_ID` | Portal client ID |
+   | `AI_ENABLED` | `false` |
+
+4. Add these repository variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, and the four values printed by `bootstrap.sh`. No secrets are needed.
+5. Require the CI checks on `main` with a branch protection rule.
+
+**First deployment of each environment:**
+
+1. Run **Build images**, and copy the image tag from its summary. You only need to do this once.
+2. Run **Infrastructure** with the environment, `apply`, and that image tag.
+3. Add the `portal_url` output as the portal's redirect URI in Entra.
+
+**After that:**
+
+- Merges deploy to dev and test automatically.
+- To deploy production, run **Deploy app** on `main` and select **Deploy to production after test**.
+- To change production infrastructure, run **Infrastructure** with `plan`, read the summary, then run it with `apply` and have a reviewer approve.
+- Infrastructure runs keep the images already running, so they don't undo an app deployment.
+
+### 3. Set up Azure DevOps
+
+1. Create a service connection named `careconnect-azure`, using workload identity federation.
+2. Give its identity these roles:
+   - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
+   - **AcrPush** on the registry
+   - **Storage Blob Data Contributor** on the state storage account
+3. Create the variable group `careconnect-shared` using the values printed by `bootstrap.sh`.
+4. Create one variable group per environment: `careconnect-dev`, `careconnect-test`, and `careconnect-prod`.
+
+   | Variable | Example |
+   |---|---|
+   | `ALLOWED_CIDRS` | `["203.0.113.0/24"]` |
+   | `ENTRA_API_CLIENT_ID` | API client ID |
+   | `ENTRA_SPA_CLIENT_ID` | Portal client ID |
+   | `AI_ENABLED` | `false` |
+
+5. Create the environments `careconnect-dev`, `careconnect-test`, and `careconnect-prod`. Add required approvers to `careconnect-prod`.
+6. Create two pipelines from `azure-pipelines/ci.yml` and `azure-pipelines/deploy.yml`.
+7. Add the CI pipeline as a required check on `main`.
+
+### 4. Run it
+
+Merging to `main` deploys to dev and test. Production runs only if you start the pipeline with **Deploy to production after test** selected, and its approvers accept.
+
+## Operations
+
+- **Turn off AI drafting:** set `AI_ENABLED` to `false` and redeploy. Other screens keep working.
+- **Roll back:** rerun the deployment for the last good commit. Database migrations only move forward, so a release with a schema change needs a forward fix.
+- **Logs:** Container Apps send logs to the environment's Log Analytics workspace.
+- **Sending HL7:** POST messages to `/api/v1/integration/hl7` through the portal address, using a token with the `INTEGRATION` role.
+
+### Enable a language model
+
+The default draft generator quotes source notes and uses no model. To use Azure OpenAI, after safety approval:
+
+1. Deploy a model in an Australian region with private access, and give the app identity the **Cognitive Services OpenAI User** role.
+2. Set `CARECONNECT_AI_PROVIDER=azure-openai`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT` on the API in `infra/terraform/main.tf`.
+
+## Before real patient data
+
+Deployment does not make this safe for clinical use. These must be closed first:
+
+**Governance**
+- [ ] Clinical safety case approved by the Clinical Safety Officer
+- [ ] Privacy impact assessment completed and actions closed
+- [ ] Regulatory classification of each AI feature (TGA medical device rules)
+- [ ] Independent penetration test
+
+**Technical**
+- [ ] Front Door + WAF added in place of IP allow-listing
+- [ ] Separate database roles: the app identity is currently the SQL administrator, so a compromised app could change the audit table and its trigger
+- [ ] Audit log exported to immutable storage or Sentinel
+- [ ] Disaster recovery designed and rehearsed
+- [ ] Alerts on failed HL7 messages (they are stored as `FAILED`, but nothing notifies anyone yet)
+- [ ] Reprocessing tool for failed HL7 messages
+- [ ] Site time zone for HL7 times confirmed (times without a zone are treated as UTC)
+- [ ] Care team feed: nothing fills `care_team_member` yet, so staff have no access until this is loaded
+- [ ] Privacy officer review workflow for emergency access

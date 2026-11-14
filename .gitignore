@@ -1,0 +1,9 @@
+target/
+node_modules/
+dist/
+.angular/
+.terraform/
+*.tfstate*
+tfplan
+*.tfvars.local
+.env
