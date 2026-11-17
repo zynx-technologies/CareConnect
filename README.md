@@ -1,6 +1,6 @@
 # CareConnect
 
-First deployable release of the CareConnect care coordination platform: a Java API, an Angular portal, Azure infrastructure, and Azure DevOps pipelines.
+First deployable release of the CareConnect care coordination platform: a Java API, an Angular portal, Azure infrastructure, and GitHub Actions workflows.
 
 > **Do not use with real patient data yet.** See [Before real patient data](#before-real-patient-data).
 
@@ -34,7 +34,7 @@ These parts of the design document are not in this release:
 | Java 25 | Java 21 LTS | Matches the toolchain this was built and tested on |
 | Microservices on AKS | One modular API on Azure Container Apps | Much less to operate for a first release; modules can split later |
 | Secrets in Key Vault | No Key Vault | The release has no secrets. It uses managed identity and Entra sign-in |
-| Australian regions only | Dev runs in UK South; test and prod stay in Australia | Dev holds synthetic data only. Terraform rejects UK regions for prod |
+| Australian regions only | Dev, test, and prod run in Australia East. The shared registry and Terraform state are in UK South, and UK regions are allowed for non-production | A Free Trial subscription cannot create Azure SQL in UK regions. Terraform rejects UK regions for prod |
 
 ## Run locally
 
@@ -62,9 +62,7 @@ cd infra/terraform && terraform init -backend=false && terraform validate
 
 ## Deploy
 
-Deployment runs from GitHub Actions or Azure DevOps. **Use only one of them.** They deploy to the same environments, and their locks don't see each other. Delete the folder for the one you don't use.
-
-Steps 1 and 2 apply to both. Then follow either [GitHub Actions](#3-set-up-github-actions) or [Azure DevOps](#3-set-up-azure-devops).
+All infrastructure and application deployments run from GitHub Actions. Steps 1 to 3 are one-time setup done by an administrator, because they create the identity that GitHub Actions signs in to Azure with.
 
 ### 1. Create shared Azure resources
 
@@ -102,7 +100,7 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
    - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
    - **AcrPush** on the registry (images are built on the runner and pushed)
    - **Storage Blob Data Contributor** on the state storage account
-2. Add a federated credential to it for each GitHub environment below, with the subject `repo:<owner>/<repo>:environment:<environment name>`.
+2. Add a federated credential to it for each GitHub environment below, with the subject `repo:<owner>/<repo>:environment:<environment name>`. If the repository uses immutable OIDC subjects, use the prefix from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub` instead, such as `repo:<owner>@<id>/<repo>@<id>:environment:<environment name>`.
 3. Create these GitHub environments:
 
    | Environment | Purpose | Set up |
@@ -137,30 +135,9 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
 - To change production infrastructure, run **Infrastructure** with `plan`, read the summary, then run it with `apply` and have a reviewer approve.
 - Infrastructure runs keep the images already running, so they don't undo an app deployment.
 
-### 3. Set up Azure DevOps
-
-1. Create a service connection named `careconnect-azure`, using workload identity federation.
-2. Give its identity these roles:
-   - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
-   - **AcrPush** on the registry
-   - **Storage Blob Data Contributor** on the state storage account
-3. Create the variable group `careconnect-shared` using the values printed by `bootstrap.sh`.
-4. Create one variable group per environment: `careconnect-dev`, `careconnect-test`, and `careconnect-prod`.
-
-   | Variable | Example |
-   |---|---|
-   | `ALLOWED_CIDRS` | `["203.0.113.0/24"]` |
-   | `ENTRA_API_CLIENT_ID` | API client ID |
-   | `ENTRA_SPA_CLIENT_ID` | Portal client ID |
-   | `AI_ENABLED` | `false` |
-
-5. Create the environments `careconnect-dev`, `careconnect-test`, and `careconnect-prod`. Add required approvers to `careconnect-prod`.
-6. Create two pipelines from `azure-pipelines/ci.yml` and `azure-pipelines/deploy.yml`.
-7. Add the CI pipeline as a required check on `main`.
-
 ### 4. Run it
 
-Merging to `main` deploys to dev and test. Production runs only if you start the pipeline with **Deploy to production after test** selected, and its approvers accept.
+Merging to `main` deploys to dev and test. Production runs only if you start **Deploy app** with **Deploy to production after test** selected, and its reviewers approve.
 
 ## Operations
 

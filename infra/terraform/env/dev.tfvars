@@ -1,4 +1,4 @@
 environment  = "dev"
-location     = "uksouth"
+location     = "australiaeast"
 vnet_cidr    = "10.40.0.0/22"
 database_sku = "S0"

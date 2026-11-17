@@ -10,6 +10,7 @@ on:
       - .github/workflows/deploy-app.yml
       - .github/workflows/_deploy-app.yml
       - .github/workflows/build-images.yml
+      - .github/scripts/**
   workflow_dispatch:
     inputs:
       deploy_production:
