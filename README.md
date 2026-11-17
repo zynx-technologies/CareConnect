@@ -100,6 +100,7 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
 
 1. Create a Microsoft Entra application for GitHub, and give it these roles:
    - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
+   - **AcrPush** on the registry (images are built on the runner and pushed)
    - **Storage Blob Data Contributor** on the state storage account
 2. Add a federated credential to it for each GitHub environment below, with the subject `repo:<owner>/<repo>:environment:<environment name>`.
 3. Create these GitHub environments:

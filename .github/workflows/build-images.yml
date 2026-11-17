@@ -29,11 +29,17 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Build in the registry
+      # Builds on the runner and pushes, because ACR Tasks (az acr build) is not permitted on every subscription.
+      # The deploy identity needs AcrPush on the registry.
+      - name: Build and push images
         env:
           ACR_NAME: ${{ vars.ACR_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          az acr build --registry "$ACR_NAME" --image "careconnect-api:$IMAGE_TAG" backend
-          az acr build --registry "$ACR_NAME" --image "careconnect-web:$IMAGE_TAG" frontend
+          az acr login --name "$ACR_NAME"
+          REGISTRY="$ACR_NAME.azurecr.io"
+          docker build --pull -t "$REGISTRY/careconnect-api:$IMAGE_TAG" backend
+          docker build --pull -t "$REGISTRY/careconnect-web:$IMAGE_TAG" frontend
+          docker push "$REGISTRY/careconnect-api:$IMAGE_TAG"
+          docker push "$REGISTRY/careconnect-web:$IMAGE_TAG"
           echo "Image tag: \`$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
