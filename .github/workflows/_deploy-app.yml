@@ -44,4 +44,4 @@ jobs:
           az containerapp update -g "$RESOURCE_GROUP" -n careconnect-api --image "$REGISTRY/careconnect-api:$IMAGE_TAG" --output none
           az containerapp update -g "$RESOURCE_GROUP" -n careconnect-web --image "$REGISTRY/careconnect-web:$IMAGE_TAG" --output none
       - name: Check the new revisions are healthy
-        run: bash azure-pipelines/scripts/verify-deployment.sh "$RESOURCE_GROUP" "$IMAGE_TAG"
+        run: bash .github/scripts/verify-deployment.sh "$RESOURCE_GROUP" "$IMAGE_TAG"

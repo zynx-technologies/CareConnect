@@ -17,7 +17,7 @@ az acr create --name "$ACR" --resource-group "$RG" --location "$LOCATION" --sku 
   --admin-enabled false --output none
 
 cat <<EOF
-Set these as GitHub repository variables, or in the Azure DevOps variable group "careconnect-shared":
+Set these as GitHub repository variables:
   TF_STATE_RESOURCE_GROUP=$RG
   TF_STATE_STORAGE_ACCOUNT=$STORAGE
   ACR_NAME=$ACR
