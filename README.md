@@ -34,7 +34,7 @@ These parts of the design document are not in this release:
 | Java 25 | Java 21 LTS | Matches the toolchain this was built and tested on |
 | Microservices on AKS | One modular API on Azure Container Apps | Much less to operate for a first release; modules can split later |
 | Secrets in Key Vault | No Key Vault | The release has no secrets. It uses managed identity and Entra sign-in |
-| Australian regions only | Dev runs in UK South; test and prod stay in Australia | Dev holds synthetic data only. Terraform rejects UK regions for prod |
+| Australian regions only | Dev, test, and prod run in Australia East. The shared registry and Terraform state are in UK South, and UK regions are allowed for non-production | A Free Trial subscription cannot create Azure SQL in UK regions. Terraform rejects UK regions for prod |
 
 ## Run locally
 
