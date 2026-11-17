@@ -3,11 +3,11 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY . .
-RUN npx ng build
+# Drop the local-dev config.json here: the nginx stage runs as a non-root user and cannot delete root-owned files.
+RUN npx ng build && rm -f dist/frontend/browser/config.json
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 # The base image fills in ${VARIABLES} from these templates when the container starts.
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /src/dist/frontend/browser /usr/share/nginx/html
-RUN rm -f /usr/share/nginx/html/config.json
 EXPOSE 8080
