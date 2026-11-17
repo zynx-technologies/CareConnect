@@ -9,11 +9,11 @@ variable "environment" {
 
 variable "location" {
   type        = string
-  description = "Azure region. Patient data must stay in Australian regions."
+  description = "Azure region. Patient data must stay in Australian regions; UK regions are for non-production synthetic data only."
   default     = "australiaeast"
   validation {
-    condition     = contains(["australiaeast", "australiasoutheast"], var.location)
-    error_message = "location must be an Australian region."
+    condition     = contains(["australiaeast", "australiasoutheast"], var.location) || (var.environment != "prod" && contains(["uksouth", "ukwest"], var.location))
+    error_message = "location must be an Australian region (UK regions are allowed outside production)."
   }
 }
 
@@ -39,10 +39,10 @@ variable "web_image" {
 
 variable "allowed_cidrs" {
   type        = list(string)
-  description = "Networks allowed to reach the portal. Open internet access is rejected until Front Door + WAF is added."
+  description = "Networks allowed to reach the portal. Open internet access (0.0.0.0/0) is allowed outside production only, until Front Door + WAF is added."
   validation {
-    condition     = length(var.allowed_cidrs) > 0 && !contains(var.allowed_cidrs, "0.0.0.0/0")
-    error_message = "List at least one network, and do not use 0.0.0.0/0."
+    condition     = length(var.allowed_cidrs) > 0 && (var.environment != "prod" || !contains(var.allowed_cidrs, "0.0.0.0/0"))
+    error_message = "List at least one network. 0.0.0.0/0 is not allowed in production."
   }
 }
 

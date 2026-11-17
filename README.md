@@ -34,6 +34,7 @@ These parts of the design document are not in this release:
 | Java 25 | Java 21 LTS | Matches the toolchain this was built and tested on |
 | Microservices on AKS | One modular API on Azure Container Apps | Much less to operate for a first release; modules can split later |
 | Secrets in Key Vault | No Key Vault | The release has no secrets. It uses managed identity and Entra sign-in |
+| Australian regions only | Dev runs in UK South; test and prod stay in Australia | Dev holds synthetic data only. Terraform rejects UK regions for prod |
 
 ## Run locally
 
@@ -114,7 +115,7 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
 
    | Variable | Example |
    |---|---|
-   | `ALLOWED_CIDRS` | `["203.0.113.0/24"]` |
+   | `ALLOWED_CIDRS` | `["203.0.113.0/24"]`. Dev and test may use `["0.0.0.0/0"]`; prod rejects it until Front Door + WAF is added |
    | `ENTRA_API_CLIENT_ID` | API client ID |
    | `ENTRA_SPA_CLIENT_ID` | Portal client ID |
    | `AI_ENABLED` | `false` |
