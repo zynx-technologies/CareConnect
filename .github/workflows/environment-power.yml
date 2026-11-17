@@ -1,0 +1,111 @@
+name: Start or stop environment
+
+# Saves cost by stopping the container apps outside working hours. Dev stops every day at 17:00 UK time.
+# Start or stop any environment by hand. The database and network keep running; only app compute stops.
+on:
+  schedule:
+    # GitHub cron runs in UTC. Both run every day, and the decide job keeps only the one that is 17:00 in London,
+    # so the stop happens at 5pm in both GMT and BST.
+    - cron: '0 16 * * *'
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment
+        type: choice
+        options: [dev, test, prod]
+        required: true
+      action:
+        description: Start or stop the apps
+        type: choice
+        options: [stop, start]
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  decide:
+    name: Decide what to do
+    runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+      environment: ${{ steps.decide.outputs.environment }}
+      action: ${{ steps.decide.outputs.action }}
+    steps:
+      - id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_ACTION: ${{ inputs.action }}
+        run: |
+          if [ "$EVENT" = "schedule" ]; then
+            HOUR="$(TZ=Europe/London date +%H)"
+            echo "London hour is $HOUR"
+            if [ "$HOUR" != "17" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "Skipped: not 17:00 in London (daylight saving duplicate)." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "environment=dev" >> "$GITHUB_OUTPUT"
+            echo "action=stop" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=$INPUT_ENVIRONMENT" >> "$GITHUB_OUTPUT"
+            echo "action=$INPUT_ACTION" >> "$GITHUB_OUTPUT"
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+  power:
+    name: ${{ needs.decide.outputs.action }} ${{ needs.decide.outputs.environment }}
+    needs: decide
+    if: needs.decide.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    environment: careconnect-${{ needs.decide.outputs.environment }}
+    # Shared with infrastructure and app deployments, so it never runs during one.
+    concurrency: careconnect-${{ needs.decide.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ACTION: ${{ needs.decide.outputs.action }}
+      RESOURCE_GROUP: rg-careconnect-${{ needs.decide.outputs.environment }}
+    steps:
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: ${{ needs.decide.outputs.action }} the apps
+        run: |
+          set -euo pipefail
+          SUBSCRIPTION="$(az account show --query id -o tsv)"
+          BASE="https://management.azure.com/subscriptions/$SUBSCRIPTION/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/containerApps"
+          API="api-version=2024-03-01"
+
+          # Start the API before the portal, and stop the portal before the API, so the portal never calls a stopped API.
+          if [ "$ACTION" = "start" ]; then APPS="careconnect-api careconnect-web"; else APPS="careconnect-web careconnect-api"; fi
+
+          echo "| App | Before | After |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for APP in $APPS; do
+            if ! BEFORE="$(az rest --method get --uri "$BASE/$APP?$API" --query properties.runningStatus -o tsv 2>/dev/null)"; then
+              echo "::warning::$APP does not exist in $RESOURCE_GROUP. Skipping."
+              echo "| $APP | missing | skipped |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            echo "$APP is $BEFORE. Sending $ACTION."
+            az rest --method post --uri "$BASE/$APP/$ACTION?$API" --output none
+
+            WANT="Running"; [ "$ACTION" = "stop" ] && WANT="Stopped"
+            AFTER="$BEFORE"
+            for _ in $(seq 1 40); do
+              AFTER="$(az rest --method get --uri "$BASE/$APP?$API" --query properties.runningStatus -o tsv)"
+              [ "$AFTER" = "$WANT" ] && break
+              sleep 15
+            done
+            echo "| $APP | $BEFORE | $AFTER |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$AFTER" != "$WANT" ]; then
+              echo "::error::$APP is $AFTER, expected $WANT."
+              exit 1
+            fi
+          done

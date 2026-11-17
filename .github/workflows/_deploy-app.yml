@@ -40,6 +40,15 @@ jobs:
             echo "::error::This environment has no apps yet. Run the Infrastructure workflow with image tag $IMAGE_TAG first." >&2
             exit 1
           fi
+          # Apps stopped by the Start or stop environment workflow are started, so the new revisions can be checked.
+          SUBSCRIPTION="$(az account show --query id -o tsv)"
+          for APP in careconnect-api careconnect-web; do
+            URI="https://management.azure.com/subscriptions/$SUBSCRIPTION/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.App/containerApps/$APP"
+            if [ "$(az rest --method get --uri "$URI?api-version=2024-03-01" --query properties.runningStatus -o tsv)" = "Stopped" ]; then
+              echo "$APP is stopped. Starting it for the deployment."
+              az rest --method post --uri "$URI/start?api-version=2024-03-01" --output none
+            fi
+          done
           # The API goes first, so the portal never calls an older API.
           az containerapp update -g "$RESOURCE_GROUP" -n careconnect-api --image "$REGISTRY/careconnect-api:$IMAGE_TAG" --output none
           az containerapp update -g "$RESOURCE_GROUP" -n careconnect-web --image "$REGISTRY/careconnect-web:$IMAGE_TAG" --output none
