@@ -95,6 +95,7 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
 | `terraform.yml` (Infrastructure) | Merges that change `infra/terraform`, or by hand | Plans and applies to dev, then test. Production is by hand only |
 | `build-images.yml` | By hand, or called by Deploy app | Builds both images in the registry |
 | `deploy-app.yml` (Deploy app) | Merges that change `backend` or `frontend`, or by hand | Runs CI and builds once, then deploys to dev and test. Production is by hand only |
+| `environment-power.yml` (Start or stop environment) | Every day at 17:00 UK time for dev, or by hand | Stops the dev apps every evening to save cost. Start or stop any environment by hand |
 
 1. Create a Microsoft Entra application for GitHub, and give it these roles:
    - **Contributor** and **User Access Administrator** on the subscription (Terraform creates a role assignment)
@@ -144,6 +145,7 @@ Merging to `main` deploys to dev and test. Production runs only if you start **D
 - **Turn off AI drafting:** set `AI_ENABLED` to `false` and redeploy. Other screens keep working.
 - **Roll back:** rerun the deployment for the last good commit. Database migrations only move forward, so a release with a schema change needs a forward fix.
 - **Logs:** Container Apps send logs to the environment's Log Analytics workspace.
+- **Save cost out of hours:** dev apps stop every day at 17:00 UK time. To start them, run **Start or stop environment** with `dev` and `start`. Only app compute stops: Azure SQL, Log Analytics, and the network keep running and are still billed. A deployment starts stopped apps. Stopping prod needs its reviewers to approve.
 - **Sending HL7:** POST messages to `/api/v1/integration/hl7` through the portal address, using a token with the `INTEGRATION` role.
 
 ### Enable a language model
