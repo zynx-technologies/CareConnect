@@ -113,3 +113,19 @@ variable "auth_mode" {
     error_message = "auth_mode must be entra or database, and production must use entra."
   }
 }
+
+variable "database_auto_pause_minutes" {
+  type        = number
+  description = "Serverless SKUs only: idle minutes before the database pauses (60 or more), or -1 to never pause."
+  default     = 60
+  validation {
+    condition     = var.database_auto_pause_minutes == -1 || var.database_auto_pause_minutes >= 60
+    error_message = "Use -1 (never pause) or at least 60 minutes."
+  }
+}
+
+variable "database_min_capacity" {
+  type        = number
+  description = "Serverless SKUs only: the fewest vCores kept while the database is running."
+  default     = 0.5
+}

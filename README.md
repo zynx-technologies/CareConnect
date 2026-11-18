@@ -157,7 +157,7 @@ Merging to `main` deploys to dev and test. Production runs only if you start **D
 - **Turn off AI drafting:** set `AI_ENABLED` to `false` and redeploy. Other screens keep working.
 - **Roll back:** rerun the deployment for the last good commit. Database migrations only move forward, so a release with a schema change needs a forward fix.
 - **Logs:** Container Apps send logs to the environment's Log Analytics workspace.
-- **Save cost out of hours:** dev apps stop every day at 17:00 UK time. To start them, run **Start or stop environment** with `dev` and `start`. Only app compute stops: Azure SQL, Log Analytics, and the network keep running and are still billed. A deployment starts stopped apps. Stopping prod needs its reviewers to approve.
+- **Save cost out of hours:** dev apps stop every day at 17:00 UK time. To start them, run **Start or stop environment** with `dev` and `start`. Stopping affects only app compute. The dev database is serverless (`GP_S_Gen5_1`): it pauses after 60 idle minutes and then bills only for storage, and the first connection after a pause wakes it in about a minute. Log Analytics and the network are still billed. Test and prod keep an always-on database (`database_sku`). A deployment starts stopped apps. Stopping prod needs its reviewers to approve.
 - **Sending HL7:** POST messages to `/api/v1/integration/hl7` through the portal address, using a token with the `INTEGRATION` role.
 
 ### Enable a language model
