@@ -7,4 +7,5 @@ export const NAV = [
   { path: '/capacity', label: 'Capacity', roles: ['MANAGER'] },
   { path: '/governance', label: 'Model governance', roles: ['SAFETY'] },
   { path: '/audit', label: 'Audit', roles: ['PRIVACY'] },
+  { path: '/users', label: 'Users', roles: ['ADMIN'] },
 ];

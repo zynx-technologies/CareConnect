@@ -37,6 +37,13 @@ careconnect:
     azure-openai:
       endpoint: ${AZURE_OPENAI_ENDPOINT:}
       deployment: ${AZURE_OPENAI_DEPLOYMENT:}
+  auth:
+    # entra: Microsoft Entra ID (production). database: CareConnect's own accounts (dev and test only).
+    mode: ${CARECONNECT_AUTH_MODE:entra}
+    jwt-secret: ${CARECONNECT_JWT_SECRET:}
+    token-minutes: 60
+    # Creates the account "admin" if there is no administrator. It must be changed at first sign-in.
+    bootstrap-admin-password: ${CARECONNECT_BOOTSTRAP_ADMIN_PASSWORD:}
   access:
     emergency-minutes: 240
   # Census days and "today" follow the hospital's time zone.

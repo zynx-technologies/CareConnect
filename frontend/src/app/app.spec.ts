@@ -3,7 +3,7 @@ import { provideHttpClient, withInterceptors, HttpClient } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { authInterceptor } from './auth';
+import { authInterceptor, AuthService } from './auth';
 import { APP_SETTINGS } from './settings';
 import { Api, Draft } from './api';
 import { DraftReviewPage } from './pages/draft-review';
@@ -102,5 +102,32 @@ describe('forecast chart', () => {
     expect(el.querySelector('path.actual')!.getAttribute('d')).toMatch(/^M.*L/);
     expect(el.querySelector('path.band')!.getAttribute('d')).toMatch(/Z$/);
     expect(el.textContent).toContain('450 beds');
+  });
+});
+
+describe('database sign-in', () => {
+  it('sends the session token to the API, but not on the sign-in call itself', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: APP_SETTINGS, useValue: { authMode: 'database' } },
+        provideRouter([]),
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    const auth = TestBed.inject(AuthService);
+    expect(auth.signedIn()).toBe(false);
+    auth.startSession({ token: 't-123', expiresAt: new Date(Date.now() + 60000).toISOString(), username: 'manager', displayName: 'Morgan Manager', roles: ['MANAGER'], mustChangePassword: false });
+    expect(auth.signedIn()).toBe(true);
+    expect(auth.hasRole('MANAGER')).toBe(true);
+    const http = TestBed.inject(HttpClient);
+    const mock = TestBed.inject(HttpTestingController);
+    http.get('/api/v1/capacity').subscribe();
+    http.post('/api/v1/auth/login', {}).subscribe();
+    await Promise.resolve();
+    expect(mock.expectOne('/api/v1/capacity').request.headers.get('Authorization')).toBe('Bearer t-123');
+    expect(mock.expectOne('/api/v1/auth/login').request.headers.has('Authorization')).toBe(false);
+    auth.signOut();
+    expect(auth.signedIn()).toBe(false);
   });
 });

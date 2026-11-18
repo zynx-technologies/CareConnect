@@ -19,7 +19,7 @@ server {
     location = /config.json {
         default_type application/json;
         add_header Cache-Control "no-store" always;
-        return 200 '{"authMode":"entra","clientId":"${ENTRA_SPA_CLIENT_ID}","tenantId":"${ENTRA_TENANT_ID}","apiScope":"${ENTRA_API_SCOPE}"}';
+        return 200 '{"authMode":"${AUTH_MODE}","clientId":"${ENTRA_SPA_CLIENT_ID}","tenantId":"${ENTRA_TENANT_ID}","apiScope":"${ENTRA_API_SCOPE}"}';
     }
 
     # The API has internal ingress only, so the browser reaches it through this proxy.

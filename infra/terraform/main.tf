@@ -146,6 +146,24 @@ resource "azurerm_private_endpoint" "sql" {
   }
 }
 
+# ---------- Sign-in with CareConnect accounts ----------
+
+# Used only when auth_mode is "database". Kept in Terraform state and passed to the API as Container App secrets.
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = false
+}
+
+# The first administrator account, "admin". Its password must be changed at first sign-in.
+resource "random_password" "bootstrap_admin" {
+  length           = 20
+  min_upper        = 2
+  min_lower        = 2
+  min_numeric      = 2
+  min_special      = 2
+  override_special = "!#%+-=?"
+}
+
 # ---------- Applications ----------
 
 resource "azurerm_container_app_environment" "main" {
@@ -179,6 +197,15 @@ resource "azurerm_container_app" "api" {
   registry {
     server   = data.azurerm_container_registry.shared.login_server
     identity = azurerm_user_assigned_identity.app.id
+  }
+
+  secret {
+    name  = "jwt-secret"
+    value = random_password.jwt_secret.result
+  }
+  secret {
+    name  = "bootstrap-admin-password"
+    value = random_password.bootstrap_admin.result
   }
 
   ingress {
@@ -224,6 +251,18 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "CARECONNECT_DEMO_DATA_ENABLED"
         value = tostring(var.demo_data)
+      }
+      env {
+        name  = "CARECONNECT_AUTH_MODE"
+        value = var.auth_mode
+      }
+      env {
+        name        = "CARECONNECT_JWT_SECRET"
+        secret_name = "jwt-secret"
+      }
+      env {
+        name        = "CARECONNECT_BOOTSTRAP_ADMIN_PASSWORD"
+        secret_name = "bootstrap-admin-password"
       }
 
       startup_probe {
@@ -311,6 +350,10 @@ resource "azurerm_container_app" "web" {
       env {
         name  = "ENTRA_TENANT_ID"
         value = var.entra_tenant_id
+      }
+      env {
+        name  = "AUTH_MODE"
+        value = var.auth_mode
       }
       env {
         name  = "ENTRA_API_SCOPE"

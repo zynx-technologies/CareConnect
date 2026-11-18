@@ -103,3 +103,13 @@ variable "demo_data" {
     error_message = "Synthetic demo data cannot be turned on in production."
   }
 }
+
+variable "auth_mode" {
+  type        = string
+  description = "How people sign in: entra (Microsoft Entra ID with MFA) or database (CareConnect accounts). Production must use entra."
+  default     = "entra"
+  validation {
+    condition     = contains(["entra", "database"], var.auth_mode) && !(var.auth_mode == "database" && var.environment == "prod")
+    error_message = "auth_mode must be entra or database, and production must use entra."
+  }
+}

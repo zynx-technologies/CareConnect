@@ -2,6 +2,7 @@ package com.careconnect.security;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -33,9 +34,25 @@ public class SecurityConfig {
 
     @Bean
     @Profile("!local & !test")
+    @ConditionalOnProperty(name = "careconnect.auth.mode", havingValue = "entra", matchIfMissing = true)
     SecurityFilterChain entraChain(HttpSecurity http) throws Exception {
         return base(http)
                 .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(new EntraConverter())))
+                .build();
+    }
+
+    /** CareConnect's own accounts. Only the sign-in endpoint is open; everything else needs a token. */
+    @Bean
+    @Profile("!local & !test")
+    @ConditionalOnProperty(name = "careconnect.auth.mode", havingValue = "database")
+    SecurityFilterChain databaseChain(HttpSecurity http, DatabaseAuthConfig.DatabaseConverter converter) throws Exception {
+        return http
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/actuator/health/**", "/api/v1/auth/login").permitAll()
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(converter)))
                 .build();
     }
 
