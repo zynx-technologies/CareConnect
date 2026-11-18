@@ -1,6 +1,7 @@
 package com.careconnect.task;
 
 import com.careconnect.access.AccessService;
+import com.careconnect.analytics.RiskService;
 import com.careconnect.common.ApiErrors;
 import com.careconnect.common.Db;
 import com.careconnect.security.CurrentUser;
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,31 +31,43 @@ import org.springframework.web.bind.annotation.RestController;
 public class TaskController {
 
     public record WorklistItem(String id, String patientId, String mrn, String familyName, String givenName,
-                               String title, String status, Instant dueAt, String assignedTo) {}
-    public record NewTask(@NotBlank @Size(max = 200) String title, @NotNull Instant dueAt, String assignedTo) {}
+                               String title, String reason, String team, String status, Instant dueAt, String assignedTo,
+                               String readmissionRisk) {}
+    public record NewTask(@NotBlank @Size(max = 200) String title, @NotNull Instant dueAt, String assignedTo,
+                          @Size(max = 200) String reason, @Size(max = 100) String team) {}
+
+    private record Row(String id, String patientId, String mrn, String familyName, String givenName, String title,
+                       String reason, String team, String status, Instant dueAt, String assignedTo) {}
 
     private final JdbcClient jdbc;
     private final AccessService access;
     private final CurrentUser user;
+    private final RiskService risk;
 
-    public TaskController(JdbcClient jdbc, AccessService access, CurrentUser user) {
+    public TaskController(JdbcClient jdbc, AccessService access, CurrentUser user, RiskService risk) {
         this.jdbc = jdbc;
         this.access = access;
         this.user = user;
+        this.risk = risk;
     }
 
-    /** Open tasks for patients on the signed-in person's care team. */
+    /** Open tasks for patients on the signed-in person's care team, soonest due first. */
     @GetMapping("/worklist")
     public List<WorklistItem> worklist() {
-        return jdbc.sql("""
-                SELECT t.id, t.patient_id, p.mrn, p.family_name, p.given_name, t.title, t.status, t.due_at, t.assigned_to
+        List<Row> rows = jdbc.sql("""
+                SELECT t.id, t.patient_id, p.mrn, p.family_name, p.given_name, t.title, t.reason, t.team, t.status,
+                       t.due_at, t.assigned_to
                 FROM care_task t
                 JOIN patient p ON p.id = t.patient_id
                 JOIN care_team_member c ON c.patient_id = t.patient_id AND c.user_id = ?
                 JOIN consent_policy cp ON cp.patient_id = t.patient_id AND cp.purpose = 'CARE' AND cp.status = 'ACTIVE'
                 WHERE t.status = 'OPEN'
                 ORDER BY t.due_at OFFSET 0 ROWS FETCH NEXT 200 ROWS ONLY""")
-                .param(user.id()).query(WorklistItem.class).list();
+                .param(user.id()).query(Row.class).list();
+        Map<String, String> levels = risk.currentLevels(rows.stream().map(Row::patientId).collect(Collectors.toSet()),
+                RiskService.READMISSION);
+        return rows.stream().map(r -> new WorklistItem(r.id(), r.patientId(), r.mrn(), r.familyName(), r.givenName(),
+                r.title(), r.reason(), r.team(), r.status(), r.dueAt(), r.assignedTo(), levels.get(r.patientId()))).toList();
     }
 
     @PostMapping("/patients/{patientId}/tasks")
@@ -62,9 +76,9 @@ public class TaskController {
         access.requirePatientAccess(patientId, "TASK_CREATE");
         String id = Db.newId();
         jdbc.sql("""
-                INSERT INTO care_task (id, patient_id, title, status, due_at, assigned_to, created_at)
-                VALUES (?, ?, ?, 'OPEN', ?, ?, ?)""")
-                .params(id, patientId, task.title(), Db.ts(task.dueAt()), task.assignedTo(), Db.now())
+                INSERT INTO care_task (id, patient_id, title, status, due_at, assigned_to, created_at, reason, team)
+                VALUES (?, ?, ?, 'OPEN', ?, ?, ?, ?, ?)""")
+                .params(id, patientId, task.title(), Db.ts(task.dueAt()), task.assignedTo(), Db.now(), task.reason(), task.team())
                 .update();
         return Map.of("id", id);
     }

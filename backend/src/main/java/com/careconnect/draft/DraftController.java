@@ -35,7 +35,10 @@ import tools.jackson.databind.ObjectMapper;
 public class DraftController {
 
     public record DraftView(String id, String patientId, String status, String content, List<CheckedStatement> statements,
-                            String generator, Instant createdAt, String signedBy, Instant signedAt, String signedNoteId) {}
+                            String generator, Instant createdAt, String signedBy, Instant signedAt, String signedNoteId,
+                            long tracedStatements, List<String> itemsToCheck) {}
+    public record PendingDraft(String id, String patientId, String mrn, String familyName, String givenName,
+                               String generator, Instant createdAt) {}
     public record SignRequest(@NotBlank String content,
                               @AssertTrue(message = "The clinician must confirm they reviewed the sources") boolean reviewedSources) {}
 
@@ -85,6 +88,20 @@ public class DraftController {
                 .params(id, patientId, content, json.writeValueAsString(checked), generator.name(), Db.now(), user.id())
                 .update();
         return get(id);
+    }
+
+    /** Drafts waiting for review, for patients on the signed-in clinician's care team. */
+    @GetMapping("/discharge-drafts")
+    public List<PendingDraft> pending() {
+        return jdbc.sql("""
+                SELECT d.id, d.patient_id, p.mrn, p.family_name, p.given_name, d.generator, d.created_at
+                FROM ai_draft d
+                JOIN patient p ON p.id = d.patient_id
+                JOIN care_team_member c ON c.patient_id = d.patient_id AND c.user_id = ?
+                JOIN consent_policy cp ON cp.patient_id = d.patient_id AND cp.purpose = 'CARE' AND cp.status = 'ACTIVE'
+                WHERE d.status = 'DRAFT'
+                ORDER BY d.created_at""")
+                .param(user.id()).query(PendingDraft.class).list();
     }
 
     @GetMapping("/discharge-drafts/{id}")
@@ -137,7 +154,25 @@ public class DraftController {
 
     private DraftView view(Row r) {
         List<CheckedStatement> statements = json.readValue(r.statements(), new TypeReference<>() {});
+        long traced = statements.stream().filter(s -> !s.sourceIds().isEmpty() && s.warnings().isEmpty()).count();
         return new DraftView(r.id(), r.patientId(), r.status(), r.content(), statements, r.generator(), r.createdAt(),
-                r.signedBy(), r.signedAt(), r.signedNoteId());
+                r.signedBy(), r.signedAt(), r.signedNoteId(), traced, itemsToCheck(r.patientId(), statements));
+    }
+
+    /** Gaps the clinician should close before signing. They come from the record, not from the draft text. */
+    private List<String> itemsToCheck(String patientId, List<CheckedStatement> statements) {
+        List<String> items = new java.util.ArrayList<>();
+        boolean followUpOpen = jdbc.sql("SELECT COUNT(*) FROM care_task WHERE patient_id = ? AND task_type = 'GP_FOLLOW_UP' AND status = 'OPEN'")
+                .param(patientId).query(Long.class).single() > 0;
+        if (followUpOpen) {
+            items.add("No GP appointment found");
+        }
+        boolean allergies = jdbc.sql("SELECT COUNT(*) FROM patient_alert WHERE patient_id = ? AND category = 'Allergy'")
+                .param(patientId).query(Long.class).single() > 0;
+        if (allergies && statements.stream().noneMatch(s -> s.text().toLowerCase().contains("allerg"))) {
+            items.add("Allergies are recorded but not mentioned");
+        }
+        statements.forEach(s -> s.warnings().forEach(w -> items.add(w + ": " + s.section())));
+        return items;
     }
 }

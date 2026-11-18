@@ -46,3 +46,53 @@ textarea, td input, td select { width: 100%; }
   .side { width: 100%; display: flex; flex-wrap: wrap; }
   .logo { width: 100%; padding-bottom: 6px; }
 }
+
+/* ---------- Screens from the design document ---------- */
+.side-note { color: #dfe7f1; font-size: 12px; padding: 9px; }
+.page-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.page-head h1 { margin: 0; }
+.tag { font-size: 12px; color: var(--muted); }
+.join { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; background: #fff8e6; border-bottom: 1px solid #f0dba8; padding: 8px 18px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.kpi { background: #fff; border: 1px solid var(--line); border-radius: 7px; padding: 11px 14px; }
+.kpi .k-label { color: var(--muted); font-size: 12px; }
+.kpi .k-value { font-size: 24px; font-weight: 700; line-height: 1.25; }
+.kpi .k-note { color: var(--muted); font-size: 12px; }
+.cols { display: grid; gap: 12px; align-items: start; grid-template-columns: minmax(0, 3fr) minmax(240px, 1fr); }
+.cols3 { display: grid; gap: 12px; align-items: start; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols-board { display: grid; gap: 12px; align-items: start; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(280px, 1.25fr); }
+.cols-2 { display: grid; gap: 12px; align-items: start; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .cols, .cols3, .cols-board, .cols-2 { grid-template-columns: minmax(0, 1fr); } }
+.bar { height: 7px; border-radius: 4px; background: #e6ebf0; overflow: hidden; margin: 4px 0 10px; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.kv { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 3px 0; }
+.chip { display: inline-block; background: #e8edf2; border-radius: 10px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+.badge.teal { background: #dcf1ef; color: #0b5e57; }
+.badge.grey { background: #e8edf2; color: #45505d; }
+.badge.red { background: #fbe4e4; color: #a11f1f; }
+.ai { background: #eef4fc; border: 1px solid #b9cfee; border-radius: 6px; padding: 10px 12px; }
+.ai-label { font-size: 12px; font-weight: 700; color: #2a4f86; text-transform: uppercase; letter-spacing: .03em; }
+.cite { color: #2a5bb8; font-size: 12px; margin-left: 3px; }
+.mark { background: #fff1b8; }
+.src { border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; margin: 0 -8px; }
+.src.hl { border-color: #e4cf6e; background: #fffbea; }
+.col h2 { display: flex; justify-content: space-between; }
+.rcard { display: block; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 0 0 8px; font-weight: 400; background: #fff; }
+.rcard.sel { border-color: var(--brand); box-shadow: 0 0 0 2px #b9dfda; }
+.rcard .sub { display: block; color: var(--muted); font-size: 12px; }
+.actions-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.footnote { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { padding: 3px 0; }
+.big { font-size: 26px; font-weight: 700; line-height: 1.2; }
+.big.red { color: #a11f1f; }
+.big.amber { color: #855b00; }
+.big.green { color: #176b3a; }
+.chart { width: 100%; height: auto; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+.legend i.band { height: 9px; border: 0; background: rgba(42, 120, 214, .18); }
+.tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); white-space: nowrap; }
+.tip strong { font-size: 14px; }
+.rel { position: relative; }
+details > summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 8px; }

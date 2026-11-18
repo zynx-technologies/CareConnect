@@ -26,6 +26,10 @@ public class ApiErrors extends ResponseEntityExceptionHandler {
         public Unavailable(String message) { super(message); }
     }
 
+    public static class BadRequest extends RuntimeException {
+        public BadRequest(String message) { super(message); }
+    }
+
     @ExceptionHandler(NotFound.class)
     ProblemDetail notFound(NotFound e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
 
@@ -34,6 +38,9 @@ public class ApiErrors extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AccessDenied.class)
     ProblemDetail denied(AccessDenied e) { return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage()); }
+
+    @ExceptionHandler(BadRequest.class)
+    ProblemDetail badRequest(BadRequest e) { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage()); }
 
     @ExceptionHandler(Unavailable.class)
     ProblemDetail unavailable(Unavailable e) { return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage()); }

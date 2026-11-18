@@ -221,6 +221,10 @@ resource "azurerm_container_app" "api" {
         name  = "CARECONNECT_AI_ENABLED"
         value = tostring(var.ai_enabled)
       }
+      env {
+        name  = "CARECONNECT_DEMO_DATA_ENABLED"
+        value = tostring(var.demo_data)
+      }
 
       startup_probe {
         transport               = "HTTP"

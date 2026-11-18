@@ -8,11 +8,15 @@ First deployable release of the CareConnect care coordination platform: a Java A
 
 | Area | Included |
 |---|---|
-| Patient record | Care-team patient list, encounters, notes, tasks |
-| Access control | Role, care relationship, and consent checks; audited emergency access; audit trail |
-| Referrals | Create, triage with a clinical reason, book |
-| Care tasks | Worklist, completion, automatic GP follow-up task after discharge |
-| AI drafts | Cited discharge drafts with automated checks; clinician signature required; kill switch, off by default |
+| Screens | The six design screens (worklist, patient record, discharge summary review, referral management, bed and staffing forecast, model governance), plus Note review and Audit. Each person sees only the screens for their roles |
+| Patient record | Alerts, consent by purpose, care team, timeline, medicines, next steps, latest signed summary, and readmission risk with reasons and clinician feedback |
+| Access control | Role, care relationship, and consent checks; audited emergency access; privacy officer review of each emergency access; audit trail search |
+| Referrals | Board by stage; AI-extracted summary with its source; service suggestions from eligibility rules and wait times; accept and book, change, or request information |
+| Care tasks | Worklist with reason, team, and risk; team load; interface status; automatic GP follow-up task after discharge |
+| AI drafts | Cited, sectioned discharge drafts with source highlighting, traced-fact count, and items to check; clinician signature required; kill switch, off by default |
+| Analytics | Worklist measures (follow-up within 7 days, discharge pressure, triage wait); hourly bed census; 7-day bed forecast with an 80% range and its measured accuracy; ward pressure; nursing gaps; Power BI views (`rpt_fact_*`) |
+| Model governance | Registry of model versions; subgroup performance with review and watch status from the release-gate limits; clinician feedback rates; approvals and evidence; a suspend switch that hides a model's output from every care screen. Only live models are shown to care teams |
+| Demo data | Synthetic patients, wards, referrals, scores, and model evidence for local and dev, rebuilt each day. Terraform refuses it in production |
 | Integration | HL7 v2 ADT A01 and A03 over HTTPS, with raw message storage and duplicate detection |
 | Delivery | Dockerfiles, Terraform, CI and deployment pipelines |
 
@@ -22,10 +26,10 @@ These parts of the design document are not in this release:
 
 - FHIR store (Azure Health Data Services), and pathology, GP, pharmacy, and My Health Record feeds
 - Patient matching beyond exact MRN, and terminology mapping
-- Data platform, risk models, capacity forecasts, MLOps, and model governance screens
+- The de-identified analytics platform (Databricks, Delta Lake, MLflow). The bed forecast here is a simple seasonal baseline (`cc-capacity baseline-1`) computed in the API. Risk scores are loaded through `PUT /api/v1/risk-scores` by a scoring job that does not exist yet, so in dev they come from demo data
 - Front Door + WAF, a hub network, ExpressRoute, and disaster recovery region
 - SMS reminders, ServiceNow incidents, and alert rules
-- Privacy officer screens (the audit and consent APIs exist)
+- Consent changes from the portal (the consent API exists)
 
 ### Differences from the design document
 
@@ -38,7 +42,7 @@ These parts of the design document are not in this release:
 
 ## Run locally
 
-Needs Java 21 and Node 24. Local mode uses an in-memory database, synthetic data, and a user picker in place of sign-in.
+Needs Java 21 and Node 24. Local mode uses an in-memory database, synthetic demo data, and a user picker in place of sign-in. Pick **All roles (demo walkthrough)** to see every screen.
 
 ```bash
 cd backend
@@ -78,7 +82,7 @@ Run once as an Azure administrator:
 - Set the Application ID URI to `api://<api-client-id>`.
 - Expose a scope named `access_as_user`.
 - Set `accessTokenAcceptedVersion` to `2` in the manifest.
-- Create app roles: `CLINICIAN`, `COORDINATOR`, `TRIAGE`, `PRIVACY`, and `INTEGRATION`.
+- Create app roles: `CLINICIAN`, `COORDINATOR`, `TRIAGE`, `PRIVACY`, `MANAGER`, `SAFETY`, and `INTEGRATION`.
 
 **Portal (`careconnect-portal`)**
 - Add a single-page application platform. The redirect URI is the `portal_url` Terraform output, so add it after the first deployment.
@@ -142,6 +146,10 @@ Merging to `main` deploys to dev and test. Production runs only if you start **D
 
 ## Operations
 
+- **Demo data:** dev sets `demo_data = true` in `infra/terraform/env/dev.tfvars`. The API rebuilds the synthetic data each day (site time zone), and only ever touches rows whose IDs start with `demo-`. A signed-in person with no demo patients sees **Join the demo care team** at the top of the portal; joining is audited.
+- **Roles:** the API and portal app registrations need two more app roles for the new screens: `MANAGER` (bed and staffing forecast) and `SAFETY` (model governance).
+- **Suspend a risk model:** on Model governance, give a reason and select **Suspend model**. Its scores disappear from every care screen at once.
+
 - **Turn off AI drafting:** set `AI_ENABLED` to `false` and redeploy. Other screens keep working.
 - **Roll back:** rerun the deployment for the last good commit. Database migrations only move forward, so a release with a schema change needs a forward fix.
 - **Logs:** Container Apps send logs to the environment's Log Analytics workspace.
@@ -174,4 +182,3 @@ Deployment does not make this safe for clinical use. These must be closed first:
 - [ ] Reprocessing tool for failed HL7 messages
 - [ ] Site time zone for HL7 times confirmed (times without a zone are treated as UTC)
 - [ ] Care team feed: nothing fills `care_team_member` yet, so staff have no access until this is loaded
-- [ ] Privacy officer review workflow for emergency access

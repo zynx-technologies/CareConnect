@@ -1,9 +1,9 @@
-# Local development only. Uses an in-memory database, synthetic seed data, and header-based sign-in.
+# Local development only. Uses an in-memory database, synthetic demo data, and header-based sign-in.
 spring:
   datasource:
     url: jdbc:h2:mem:careconnect;MODE=MSSQLServer;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
   flyway:
-    locations: classpath:db/migration,classpath:db/local
+    locations: classpath:db/migration,classpath:db/vendor/{vendor}
   autoconfigure:
     exclude:
       - org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerAutoConfiguration
@@ -13,3 +13,5 @@ careconnect:
   ai:
     enabled: true
     provider: extractive
+  demo-data:
+    enabled: true

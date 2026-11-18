@@ -13,15 +13,15 @@ import java.util.stream.Collectors;
  * Compares each draft statement with its cited notes, so the clinician can see what to check. A passing
  * result is not proof that a statement is correct. It catches missing citations and unsupported numbers.
  */
-final class DraftChecker {
+public final class DraftChecker {
 
-    record CheckedStatement(String text, List<String> sourceIds, List<String> warnings) {}
+    public record CheckedStatement(String section, String text, List<String> sourceIds, List<String> warnings) {}
 
     private static final Pattern NUMBER = Pattern.compile("\\d+(?:\\.\\d+)?");
 
     private DraftChecker() {}
 
-    static List<CheckedStatement> check(List<Statement> statements, List<SourceNote> notes) {
+    public static List<CheckedStatement> check(List<Statement> statements, List<SourceNote> notes) {
         Map<String, String> bodies = notes.stream().collect(Collectors.toMap(SourceNote::id, SourceNote::body));
         return statements.stream().map(s -> checkOne(s, bodies)).toList();
     }
@@ -41,7 +41,7 @@ final class DraftChecker {
                 warnings.add("Number " + number + " does not appear in the cited notes");
             }
         }
-        return new CheckedStatement(statement.text(), valid, warnings);
+        return new CheckedStatement(statement.section(), statement.text(), valid, warnings);
     }
 
     private static List<String> numbers(String text) {

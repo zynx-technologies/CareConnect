@@ -39,6 +39,13 @@ careconnect:
       deployment: ${AZURE_OPENAI_DEPLOYMENT:}
   access:
     emergency-minutes: 240
+  # Census days and "today" follow the hospital's time zone.
+  site-zone: ${CARECONNECT_SITE_ZONE:Australia/Sydney}
+  demo-data:
+    # Synthetic people and analytics for dev and local only. Terraform refuses it in production.
+    enabled: ${CARECONNECT_DEMO_DATA_ENABLED:false}
+    # Comma-separated user IDs added to the demo care team at each daily reload.
+    care-team: ${CARECONNECT_DEMO_CARE_TEAM:}
 
 logging:
   level:
