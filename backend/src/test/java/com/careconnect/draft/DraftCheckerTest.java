@@ -12,7 +12,7 @@ class DraftCheckerTest {
     private final List<SourceNote> notes = List.of(new SourceNote("n1", "Progress", "Doxycycline for 5 more days."));
 
     private DraftChecker.CheckedStatement check(String text, String... ids) {
-        return DraftChecker.check(List.of(new Statement(text, List.of(ids))), notes).getFirst();
+        return DraftChecker.check(List.of(new Statement("Hospital course", text, List.of(ids))), notes).getFirst();
     }
 
     @Test

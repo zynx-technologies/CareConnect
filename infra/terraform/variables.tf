@@ -93,3 +93,13 @@ variable "vnet_cidr" {
   description = "Address space for this environment. Must not overlap with hospital networks."
   default     = "10.40.0.0/22"
 }
+
+variable "demo_data" {
+  type        = bool
+  description = "Loads synthetic demo patients, forecasts, and model evidence so every screen can be shown. Never in production."
+  default     = false
+  validation {
+    condition     = !(var.demo_data && var.environment == "prod")
+    error_message = "Synthetic demo data cannot be turned on in production."
+  }
+}

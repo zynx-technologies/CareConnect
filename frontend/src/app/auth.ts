@@ -8,6 +8,10 @@ export const DEV_USERS = [
   { user: 'r.coordinator@example.test', roles: 'COORDINATOR', label: 'R. Coordinator (coordinator)' },
   { user: 'p.example@example.test', roles: 'CLINICIAN', label: 'Dr P. Example (clinician)' },
   { user: 'triage@example.test', roles: 'TRIAGE', label: 'Triage clinician' },
+  { user: 'bed.manager@example.test', roles: 'MANAGER', label: 'Bed and nursing manager' },
+  { user: 'safety.officer@example.test', roles: 'SAFETY', label: 'Clinical safety officer' },
+  { user: 'privacy.officer@example.test', roles: 'PRIVACY', label: 'Privacy officer' },
+  { user: 'r.coordinator@example.test', roles: 'COORDINATOR,CLINICIAN,TRIAGE,MANAGER,SAFETY,PRIVACY', label: 'All roles (demo walkthrough)' },
 ];
 
 @Injectable({ providedIn: 'root' })

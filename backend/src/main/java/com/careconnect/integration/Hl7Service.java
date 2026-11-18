@@ -80,6 +80,7 @@ public class Hl7Service {
         try {
             tx.executeWithoutResult(s -> apply(terser, type));
             jdbc.sql("UPDATE hl7_message SET status = 'PROCESSED' WHERE control_id = ?").param(controlId).update();
+            jdbc.sql("UPDATE interface_feed SET last_message_at = ? WHERE code = 'EMR'").param(Db.now()).update();
             audit.record(user.id(), "HL7_RECEIVE", null, controlId, "PROCESSED", type);
             return new Result(true, ack(message, "AA"));
         } catch (RuntimeException e) {
@@ -103,11 +104,12 @@ public class Hl7Service {
         String patientId = upsertPatient(terser);
         String visit = required(terser, "/.PV1-19-1");
         Timestamp admitted = hl7Time(field(terser, "/.PV1-44-1"));
-        int updated = jdbc.sql("UPDATE encounter SET status = 'ADMITTED', admitted_at = ?, discharged_at = NULL WHERE visit_number = ? AND patient_id = ?")
-                .params(admitted, visit, patientId).update();
+        String ward = blankToNull(field(terser, "/.PV1-3-1"));
+        int updated = jdbc.sql("UPDATE encounter SET status = 'ADMITTED', admitted_at = ?, discharged_at = NULL, ward_code = ? WHERE visit_number = ? AND patient_id = ?")
+                .params(admitted, ward, visit, patientId).update();
         if (updated == 0) {
-            jdbc.sql("INSERT INTO encounter (id, patient_id, visit_number, status, admitted_at) VALUES (?, ?, ?, 'ADMITTED', ?)")
-                    .params(Db.newId(), patientId, visit, admitted).update();
+            jdbc.sql("INSERT INTO encounter (id, patient_id, visit_number, status, admitted_at, ward_code) VALUES (?, ?, ?, 'ADMITTED', ?, ?)")
+                    .params(Db.newId(), patientId, visit, admitted, ward).update();
         }
         jdbc.sql("""
                 INSERT INTO consent_policy (patient_id, purpose, status, updated_at, updated_by)
@@ -129,8 +131,8 @@ public class Hl7Service {
         }
         Instant due = discharged.toInstant().plus(7, ChronoUnit.DAYS);
         jdbc.sql("""
-                INSERT INTO care_task (id, patient_id, title, status, due_at, created_at)
-                VALUES (?, ?, 'Book GP follow-up within 7 days of discharge', 'OPEN', ?, ?)""")
+                INSERT INTO care_task (id, patient_id, title, status, due_at, created_at, task_type, reason)
+                VALUES (?, ?, 'Book GP follow-up within 7 days of discharge', 'OPEN', ?, ?, 'GP_FOLLOW_UP', 'Discharged')""")
                 .params(Db.newId(), patientId, Db.ts(due), Db.now()).update();
     }
 
@@ -168,6 +170,10 @@ public class Hl7Service {
         } catch (HL7Exception e) {
             return "";
         }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     private static String required(Terser terser, String path) {

@@ -7,10 +7,13 @@ import { authInterceptor } from './auth';
 import { APP_SETTINGS } from './settings';
 import { Api, Draft } from './api';
 import { DraftReviewPage } from './pages/draft-review';
+import { ForecastChart } from './pages/capacity';
+import { NAV } from './nav';
+import { age, label, tone } from './ui';
 
 const draft: Draft = {
   id: 'd1', patientId: 'p1', status: 'DRAFT', content: 'Summary', generator: 'test', signedBy: null, signedAt: null,
-  statements: [{ text: 'Doxycycline for 50 days', sourceIds: ['n1'], warnings: ['Number 50 does not appear in the cited notes'] }],
+  statements: [{ section: 'Medicines', text: 'Doxycycline for 50 days', sourceIds: ['n1'], warnings: ['Number 50 does not appear in the cited notes'] }],
 };
 
 describe('auth interceptor', () => {
@@ -64,5 +67,40 @@ describe('draft review', () => {
     expect(sign.disabled).toBe(false);
     sign.click();
     expect(signDraft).toHaveBeenCalledWith('d1', 'Summary', true);
+  });
+});
+
+describe('screen helpers', () => {
+  it('always pairs a colour with a text label', () => {
+    expect(label('HIGH')).toBe('High');
+    expect(label(null)).toBe('Not scored');
+    expect(tone('HIGH')).toContain('red');
+    expect(tone('WATCH')).toContain('amber');
+    expect(age(null)).toBe('age not recorded');
+  });
+
+  it('shows each screen only to the roles that use it', () => {
+    const forRoles = (roles: string[]) => NAV.filter((n) => n.roles.some((r) => roles.includes(r))).map((n) => n.label);
+    expect(forRoles(['MANAGER'])).toEqual(['Capacity']);
+    expect(forRoles(['COORDINATOR'])).toEqual(['Worklist', 'Patients']);
+    expect(forRoles(['SAFETY', 'PRIVACY'])).toEqual(['Model governance', 'Audit']);
+  });
+});
+
+describe('forecast chart', () => {
+  it('draws actuals, a dashed forecast, and a range band joined to the last actual', () => {
+    TestBed.configureTestingModule({ imports: [ForecastChart] });
+    const fixture = TestBed.createComponent(ForecastChart);
+    fixture.componentRef.setInput('beds', 450);
+    fixture.componentRef.setInput('points', [
+      { date: '2026-11-17', actual: 410, p10: null, p50: null, p90: null },
+      { date: '2026-11-18', actual: 412, p10: null, p50: null, p90: null },
+      { date: '2026-11-19', actual: null, p10: 405, p50: 415, p90: 425 },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('path.actual')!.getAttribute('d')).toMatch(/^M.*L/);
+    expect(el.querySelector('path.band')!.getAttribute('d')).toMatch(/Z$/);
+    expect(el.textContent).toContain('450 beds');
   });
 });
