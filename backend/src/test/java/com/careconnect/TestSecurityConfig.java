@@ -8,12 +8,12 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /** Keeps authorisation rules active while tests supply users with the Spring Security jwt/user helpers. */
 @TestConfiguration
-class TestSecurityConfig {
+public class TestSecurityConfig {
 
     @Bean
     SecurityFilterChain testChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health/**").permitAll().anyRequest().authenticated())
+                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health/**", "/api/v1/auth/login").permitAll().anyRequest().authenticated())
                 .build();
     }
 }

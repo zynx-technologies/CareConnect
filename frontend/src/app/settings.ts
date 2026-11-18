@@ -1,7 +1,7 @@
 import { InjectionToken } from '@angular/core';
 
 export interface AppSettings {
-  authMode: 'dev' | 'entra';
+  authMode: 'dev' | 'entra' | 'database';
   clientId?: string;
   tenantId?: string;
   apiScope?: string;

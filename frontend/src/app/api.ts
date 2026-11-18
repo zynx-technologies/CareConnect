@@ -107,3 +107,19 @@ export class Api {
     return this.http.get<AuditEvent[]>(`${this.base}/audit/events`, { params });
   }
 }
+
+export interface AppUser { id: string; username: string; displayName: string; roles: string[]; enabled: boolean; mustChangePassword: boolean; lastLoginAt: string | null; lockedUntil: string | null; }
+
+/** CareConnect's own accounts, used when the portal is in database sign-in mode. */
+@Injectable({ providedIn: 'root' })
+export class AccountApi {
+  private http = inject(HttpClient);
+  private base = '/api/v1';
+
+  login(username: string, password: string) { return this.http.post<import('./auth').Session>(`${this.base}/auth/login`, { username, password }); }
+  changePassword(currentPassword: string, newPassword: string) { return this.http.post<import('./auth').Session>(`${this.base}/auth/password`, { currentPassword, newPassword }); }
+  users() { return this.http.get<AppUser[]>(`${this.base}/admin/users`); }
+  createUser(username: string, displayName: string, roles: string[], temporaryPassword: string) { return this.http.post<AppUser>(`${this.base}/admin/users`, { username, displayName, roles, temporaryPassword }); }
+  updateUser(id: string, displayName: string, roles: string[], enabled: boolean) { return this.http.put<AppUser>(`${this.base}/admin/users/${id}`, { displayName, roles, enabled }); }
+  resetPassword(id: string, temporaryPassword: string) { return this.http.post<void>(`${this.base}/admin/users/${id}/reset-password`, { temporaryPassword }); }
+}

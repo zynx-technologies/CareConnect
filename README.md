@@ -16,6 +16,7 @@ First deployable release of the CareConnect care coordination platform: a Java A
 | AI drafts | Cited, sectioned discharge drafts with source highlighting, traced-fact count, and items to check; clinician signature required; kill switch, off by default |
 | Analytics | Worklist measures (follow-up within 7 days, discharge pressure, triage wait); hourly bed census; 7-day bed forecast with an 80% range and its measured accuracy; ward pressure; nursing gaps; Power BI views (`rpt_fact_*`) |
 | Model governance | Registry of model versions; subgroup performance with review and watch status from the release-gate limits; clinician feedback rates; approvals and evidence; a suspend switch that hides a model's output from every care screen. Only live models are shown to care teams |
+| Sign-in | Production: Microsoft Entra ID with MFA. Dev and test can instead use CareConnect accounts (`auth_mode = "database"`): bcrypt-hashed passwords, roles per account, lockout after 5 wrong passwords, temporary passwords that must be changed, and a Users screen for administrators. Terraform refuses database sign-in in production |
 | Demo data | Synthetic patients, wards, referrals, scores, and model evidence for local and dev, rebuilt each day. Terraform refuses it in production |
 | Integration | HL7 v2 ADT A01 and A03 over HTTPS, with raw message storage and duplicate detection |
 | Delivery | Dockerfiles, Terraform, CI and deployment pipelines |
@@ -38,6 +39,7 @@ These parts of the design document are not in this release:
 | Java 25 | Java 21 LTS | Matches the toolchain this was built and tested on |
 | Microservices on AKS | One modular API on Azure Container Apps | Much less to operate for a first release; modules can split later |
 | Secrets in Key Vault | No Key Vault | The release has no secrets. It uses managed identity and Entra sign-in |
+| Entra ID with MFA for everyone | Dev signs in with CareConnect accounts, which have no MFA | Requested for dev, so testers need no Entra accounts. Production must use Entra (enforced by Terraform) |
 | Australian regions only | Dev, test, and prod run in Australia East. The shared registry and Terraform state are in UK South, and UK regions are allowed for non-production | A Free Trial subscription cannot create Azure SQL in UK regions. Terraform rejects UK regions for prod |
 
 ## Run locally
@@ -145,6 +147,8 @@ GitHub reads workflows only from the repository root, so `CareConnect` must be t
 Merging to `main` deploys to dev and test. Production runs only if you start **Deploy app** with **Deploy to production after test** selected, and its reviewers approve.
 
 ## Operations
+
+- **CareConnect accounts (dev):** sign in as `admin` with the first password from `terraform output -raw bootstrap_admin_password` (or the API's `bootstrap-admin-password` Container App secret), and change it. Then add people on the **Users** screen, giving each a temporary password and only the roles they need. The `admin` account is created only when no enabled administrator exists.
 
 - **Demo data:** dev sets `demo_data = true` in `infra/terraform/env/dev.tfvars`. The API rebuilds the synthetic data each day (site time zone), and only ever touches rows whose IDs start with `demo-`. A signed-in person with no demo patients sees **Join the demo care team** at the top of the portal; joining is audited.
 - **Roles:** the API and portal app registrations need two more app roles for the new screens: `MANAGER` (bed and staffing forecast) and `SAFETY` (model governance).
