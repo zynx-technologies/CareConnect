@@ -1,5 +1,6 @@
 locals {
-  name = "careconnect-${var.environment}"
+  name       = "careconnect-${var.environment}"
+  serverless = startswith(var.database_sku, "GP_S_")
   tags = {
     application = "careconnect"
     environment = var.environment
@@ -120,6 +121,11 @@ resource "azurerm_mssql_database" "main" {
   sku_name             = var.database_sku
   storage_account_type = "Geo"
   tags                 = local.tags
+
+  # Serverless SKUs (GP_S_*) pause after this many idle minutes and bill only for storage while paused.
+  # The first connection after a pause wakes the database, which takes about a minute.
+  auto_pause_delay_in_minutes = local.serverless ? var.database_auto_pause_minutes : null
+  min_capacity                = local.serverless ? var.database_min_capacity : null
 
   short_term_retention_policy {
     retention_days = 35
